@@ -1,0 +1,7 @@
+torchaudio
+fairseq
+tensorboardX
+torch
+pytorch-lightning
+jsonargparse[signatures]
+pytorch-fast-transformers
