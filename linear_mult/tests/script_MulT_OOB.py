@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 torch.cuda.set_device(0)
 
 from linear_mult.models.MulT import MulT
@@ -7,7 +6,7 @@ from linear_mult.models.MulT import MulT
 
 model = MulT(input_modality_channels=[35, 25, 768], 
              output_dim=5, 
-             attention_type='linear').cuda()
+             attention_type='linear', add_cls_token=False, target_sequence=False).cuda()
 criterion = torch.nn.MSELoss()
 optimizer = torch.optim.AdamW(model.parameters())
 

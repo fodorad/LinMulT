@@ -1,11 +1,10 @@
 import torch
-import numpy as np
 torch.cuda.set_device(0)
 
 from linear_mult.models.MulT import MulT
 
 
-model = MulT([35, 25, 512, 256, 1024], 5).cuda()
+model = MulT([35, 25, 512, 256, 1024], 5, add_cls_token=False, target_sequence=False).cuda()
 criterion = torch.nn.MSELoss()
 optimizer = torch.optim.AdamW(model.parameters())
 

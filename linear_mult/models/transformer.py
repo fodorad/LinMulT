@@ -4,7 +4,6 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from fast_transformers.builders.attention_builders import AttentionBuilder
 from fast_transformers.attention import AttentionLayer, LinearAttention
 from fast_transformers.masking import LengthMask, FullMask
 
@@ -125,10 +124,6 @@ class TransformerEncoderLayer(nn.Module):
         self.attention_type = attention_type
 
         if attention_type == 'linear':
-            builder = AttentionBuilder.from_kwargs(
-                attention_dropout=attn_dropout,
-                query_dimensions=embed_dim//num_heads
-            )
             self.self_attn = AttentionLayer(LinearAttention(query_dimensions=embed_dim//num_heads), 
                                                             d_model=embed_dim, 
                                                             n_heads=num_heads, 
