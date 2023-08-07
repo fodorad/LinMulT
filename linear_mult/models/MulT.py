@@ -50,11 +50,30 @@ PRETRAINED_WEIGHTS = {
 }
 
 
+class WeightedPooling(nn.Module):
+
+    def __init__(self, time_dim, feature_dim, output_dim):
+        super(WeightedPooling, self).__init__()
+        self.weights = nn.Parameter(torch.randn(time_dim, 1))
+        self.fc = nn.Linear(feature_dim, output_dim)
+
+    def forward(self, x):
+        normalized_weights = torch.softmax(self.weights,
+                                           dim=0)  # Shape: (time_dim, 1)
+        weighted_sum = torch.sum(x * normalized_weights,
+                                 dim=1)  # Shape: (batch_size, feature_dim)
+
+        output = self.fc(weighted_sum)  # Shape: (batch_size, output_dim)
+
+        return output
+
+
 class MulT(nn.Module):
 
     def __init__(self,
                  input_modality_channels: list,
                  output_dim: int,
+                 input_modality_timedim: int = None,
                  only_target_branch: list = None,
                  projected_modality_dim: int | list = None,
                  num_heads: int = 8,
@@ -66,7 +85,7 @@ class MulT(nn.Module):
                  embed_dropout_mod: list = None,
                  out_dropout: float = 0.2,
                  attn_mask: bool = True,
-                 add_cls_token: bool = True,
+                 aggregation: str | None = None,
                  target_sequence: bool = True,
                  attention_type: str = 'linear',
                  weights: str = None):
@@ -76,6 +95,11 @@ class MulT(nn.Module):
         super().__init__()
 
         assert attention_type in {'linear', 'softmax'}
+        assert aggregation in {
+            None, 'cls', 'weightedpooling', 'meanpooling', 'maxpooling'
+        }
+        if aggregation in {'weightedpooling'}:
+            assert input_modality_timedim is not None
 
         self.input_modality_channels = input_modality_channels  # [tuple,...]
         self.number_of_modalities = len(self.input_modality_channels)
@@ -111,7 +135,8 @@ class MulT(nn.Module):
         self.attn_mask = attn_mask
         self.attention_type = attention_type
 
-        self.add_cls_token = add_cls_token
+        self.aggregation = aggregation
+        self.input_modality_timedim = input_modality_timedim
         self.target_sequence = target_sequence
 
         self.partial_mode = torch.tensor(self.only_target_branch).sum()
@@ -162,17 +187,28 @@ class MulT(nn.Module):
             for target_index in self.modality_indices
         ])
 
+        self.self_attention_fusion_transformer = self.create_classifier_transformer(
+        )
+
         # Projection layers
         # head 1: sequence
-        self.proj1 = nn.Linear(combined_dim, combined_dim)
-        self.proj2 = nn.Linear(combined_dim, combined_dim)
+        #self.proj1 = nn.Linear(combined_dim, combined_dim)
+        #self.proj2 = nn.Linear(combined_dim, combined_dim)
         self.out_layer = nn.Linear(combined_dim, output_dim)
 
         # keep backward compatibility
-        if self.add_cls_token:
+        if self.aggregation == 'cls':
             # head 2: classification
             self.cls_proj1 = nn.Linear(combined_dim, combined_dim)
             self.cls_proj2 = nn.Linear(combined_dim, combined_dim)
+            self.out_cls_layer = nn.Linear(combined_dim, output_dim)
+        elif self.aggregation == 'weightedpooling':
+            self.out_cls_layer = WeightedPooling(
+                time_dim=self.input_modality_timedim,
+                feature_dim=combined_dim,
+                output_dim=output_dim
+            )  # (batch_size, time_dim, feature_dim) -> (batch_size, output_dim)
+        elif self.aggregation in {'meanpooling', 'maxpooling'}:
             self.out_cls_layer = nn.Linear(combined_dim, output_dim)
 
         if weights is not None:
@@ -240,6 +276,18 @@ class MulT(nn.Module):
             attn_mask=self.attn_mask,
             attention_type=self.attention_type)
 
+    def create_classifier_transformer(self, layers=-1):
+        return TransformerEncoder(embed_dim=self.number_of_modalities *
+                                  self.projected_modality_dim[0],
+                                  num_heads=self.num_heads,
+                                  layers=max(self.layers, layers),
+                                  attn_dropout=self.attn_dropout,
+                                  relu_dropout=self.relu_dropout,
+                                  res_dropout=self.res_dropout,
+                                  embed_dropout=self.attn_dropout,
+                                  attn_mask=self.attn_mask,
+                                  attention_type=self.attention_type)
+
     def forward(self, inputs: list):
         """
         input tensors should have dimension [batch_size, seq_len, n_features]
@@ -268,7 +316,7 @@ class MulT(nn.Module):
             logging.DEBUG,
             f'projected input sizes: {[tuple(i.size()) for i in proj_x_mod]}')
 
-        if self.add_cls_token:
+        if self.aggregation == 'cls':
             # add cls token to every input as the first timestamp
             # (projected_dim,) -> (1, 1, projected_dim) -> (batch_size, 1, projected_dim)
             #cls_tokens = [
@@ -319,7 +367,7 @@ class MulT(nn.Module):
                     cross_modal_hidden)
 
                 if self.target_sequence:
-                    if self.add_cls_token:
+                    if self.aggregation == 'cls':
                         # cls token only on the first timestamp (batch_size, 1, feature_dim)
                         cls_tokens.append(self_hidden[:, 0, :])
                         # full sequence, except the cls token (batch_size, time_dim, feature_dim)
@@ -335,37 +383,133 @@ class MulT(nn.Module):
             f"last hidden representations with shapes: {[tuple(elem.size()) for elem in last_hidden]}"
         )
 
-        # residual connection
-        shortcut = torch.cat(last_hidden, dim=-1)
+        last_hidden_representation = self.self_attention_fusion_transformer(
+            torch.cat(last_hidden, dim=-1))
 
-        last_hidden_representation = self.proj2(
-            F.dropout(F.relu(self.proj1(shortcut)),
-                      p=self.out_dropout,
-                      training=self.training))
-        last_hidden_representation += shortcut
+        # residual connection
+        # shortcut = torch.cat(last_hidden, dim=-1)
+        # last_hidden_representation = self.proj2(
+        #     F.dropout(F.relu(self.proj1(shortcut)),
+        #               p=self.out_dropout,
+        #               training=self.training))
+        # last_hidden_representation += shortcut
 
         # seq head: sequence -> time-distributed dense -> sequence-wise logits
         output_seq = self.out_layer(last_hidden_representation)
         logging.log(logging.DEBUG,
                     f"output sequence shape: {tuple(output_seq.size())}")
 
-        if not self.add_cls_token:
+        if self.aggregation is None:
             return output_seq
 
-        # cls head: cls tokens -> class logit
-        cls_combined = torch.cat(cls_tokens, dim=-1)
-        cls_representation = self.cls_proj2(
-            F.dropout(F.relu(self.cls_proj1(cls_combined)),
-                      p=self.out_dropout,
-                      training=self.training))
-        output_cls = self.out_cls_layer(cls_representation)
+        elif self.aggregation == 'cls':
+            # cls head: cls tokens -> class logit
+            cls_combined = torch.cat(cls_tokens, dim=-1)
+            cls_representation = self.cls_proj2(
+                F.dropout(F.relu(self.cls_proj1(cls_combined)),
+                          p=self.out_dropout,
+                          training=self.training))
+            output_cls = self.out_cls_layer(cls_representation)
+
+        elif self.aggregation == 'weightedpooling':
+            output_cls = self.out_cls_layer(last_hidden_representation)
+
+        elif self.aggregation == 'meanpooling':
+            output_cls = self.out_cls_layer(
+                torch.mean(last_hidden_representation, dim=1))
+
+        elif self.aggregation == 'maxpooling':
+            output_cls = self.out_cls_layer(
+                torch.max(last_hidden_representation, dim=1))
+
         logging.log(logging.DEBUG,
                     f"output cls token shape: {tuple(output_cls.size())}")
 
         return output_cls, output_seq
 
 
+class LinearTransformer(nn.Module):
+
+    def __init__(self,
+                 input_modality_channels: int,
+                 output_dim: int,
+                 projected_modality_dim: int = 32,
+                 num_heads: int = 8,
+                 layers: int = 5,
+                 attn_dropout: float = 0.0,
+                 attn_dropout_mod: float = 0.1,
+                 relu_dropout: float = 0.2,
+                 res_dropout: float = 0.2,
+                 embed_dropout_mod: float = 0.1,
+                 out_dropout: float = 0.2,
+                 attn_mask: bool = True,
+                 target_sequence: bool = True,
+                 attention_type: str = 'linear'):
+
+        super().__init__()
+        self.input_modality_channels = input_modality_channels
+        self.projected_modality_dim = projected_modality_dim
+        self.num_heads = num_heads
+        self.layers = layers
+        self.attn_dropout = attn_dropout
+        self.attn_dropout_mod = attn_dropout_mod
+        self.relu_dropout = relu_dropout
+        self.res_dropout = res_dropout
+        self.out_dropout = out_dropout
+        self.embed_dropout_mod = embed_dropout_mod
+        self.attn_mask = attn_mask
+        self.attention_type = attention_type
+        self.target_sequence = target_sequence
+        self.output_dim = output_dim
+
+        # 1. Temporal convolutional layers
+        self.projector = nn.Conv1d(input_modality_channels,
+                                   projected_modality_dim,
+                                   kernel_size=1,
+                                   padding=0,
+                                   bias=False)
+
+        # 2. Self Attention Linear Transformer
+        self.self_attention_transformer = TransformerEncoder(
+            embed_dim=self.projected_modality_dim,
+            num_heads=self.num_heads,
+            layers=self.layers,
+            attn_dropout=self.attn_dropout,
+            relu_dropout=self.relu_dropout,
+            res_dropout=self.res_dropout,
+            embed_dropout=self.attn_dropout,
+            attn_mask=self.attn_mask,
+            attention_type=self.attention_type)
+
+        # 3. Projection layer
+        self.out_layer = nn.Linear(projected_modality_dim, output_dim)
+
+    def forward(self, input):
+        """
+        input tensors should have dimension [batch_size, seq_len, n_features]
+        """
+        if isinstance(input, list) and len(input) == 1:
+            input = input[0]
+
+        if self.embed_dropout_mod > 0:
+            input = F.dropout(input.transpose(1, 2),
+                              p=self.embed_dropout_mod,
+                              training=self.training)
+
+        proj_x = self.projector(input)
+        proj_x = proj_x.permute(0, 2, 1)
+        hidden_representation = self.self_attention_transformer(proj_x)
+        output_seq = self.out_layer(hidden_representation)
+        return output_seq
+
+
 if __name__ == "__main__":
+
+    x = torch.rand((10, 15, 157))
+    m = LinearTransformer(157, 1)
+    y = m(x)
+    print(x.size(), y.size())
+    exit()
 
     i2 = [torch.rand((1, 5, 4)), torch.rand((1, 6, 5))]
     i2_2 = [torch.rand((8, 18, 1024)), torch.rand((8, 18, 160))]
@@ -391,12 +535,27 @@ if __name__ == "__main__":
     inputs = i2_2
     model = MulT([i.shape[-1] for i in inputs],
                  output_dim=1,
+                 input_modality_timedim=18,
                  target_sequence=True,
-                 add_cls_token=True)
+                 aggregation='weightedpooling')
+    print(model)
     output_cls, output_seq = model(inputs)
     print(
         f'Number of modality: {num_modality}\nmodel output cls shape: {output_cls.size()}\nmodel output seq shape: {output_seq.size()}'
     )
+
+    exit()
+
+    model = MulT([i.shape[-1] for i in inputs],
+                 output_dim=1,
+                 target_sequence=True,
+                 aggregation='cls')
+    output_cls, output_seq = model(inputs)
+    print(
+        f'Number of modality: {num_modality}\nmodel output cls shape: {output_cls.size()}\nmodel output seq shape: {output_seq.size()}'
+    )
+
+    exit()
 
     for num_modality, inputs in zip([2, 3, 4, 5], [i2, i3, i4, i5]):
         model = MulT([i.shape[-1] for i in inputs],
