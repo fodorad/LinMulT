@@ -1,12 +1,9 @@
 import torch
-torch.cuda.set_device(0)
-
-from linear_mult.models.MulT import MulT
+from linmult.models.LinMulT import LinMulT
 
 
-model = MulT(input_modality_channels=[35, 25, 768], 
-             output_dim=5, 
-             attention_type='linear', add_cls_token=False, target_sequence=False).cuda()
+model = LinMulT(input_modality_channels=[35, 25, 768], output_dim=5,
+                add_time_collapse=True, add_self_attention_fusion=False).cuda()
 criterion = torch.nn.MSELoss()
 optimizer = torch.optim.AdamW(model.parameters())
 
@@ -19,7 +16,7 @@ for i in range(5):
 
     y_pred = model([x_a, x_v, x_t])
     loss = criterion(y_pred, y_true)
-    
+
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()

@@ -1,73 +1,116 @@
-# LinearMulT
+# LinMulT
 
-General-purpose Multimodal Transformer with Linear Attention.
-
-PyTorch implementation of the linear transformer used in the following paper: **Multimodal Sentiment and Personality Perception Under Speech: A Comparison of Transformer-based Architectures** (https://proceedings.mlr.press/v173/fodor22a.html)
-
+General-purpose Multimodal Transformer with Linear Complexity Attention Mechanism.
 
 # Setup
 
-## Environment
-* Python 3.10
-* PyTorch and cuDNN 1.12.1+cu102
+### Environment
+* Python 3.10+
+* PyTorch and cuDNN 1.13.1+cu117
 
-## Install dependencies
+### Install package with pip+git
 ```
-conda create -n py310 python=3.10
-conda activate py310
+pip install -U git+https://github.com/fodorad/LinMulT.git
+```
+
+### Install package from repository root
+```
+git clone https://github.com/fodorad/LinMulT
+cd LinMulT
+pip install -e .
 pip install -U -r requirements.txt
 ```
 
-## Install package from repository root
-```
-pip install -e .
-```
-
-
 # Quick start
-The following code builds a multimodal transformer with linear attention, then a forward pass is executed using 3 input sequences.
-
+### Example 1:
+Simple transformer encoder with linear attention.
+The forward pass is performed using an input sequence.
 ```
 import torch
-from linear_mult.models.MulT import MulT
-
-model = MulT(input_modality_channels=[35, 25, 768], 
-             output_dim=5, 
-             attention_type='linear').cuda()
+from linmult import LinT
 
 # input shape: (batch_size, time_dimension, feature_dimension)
-x_a = torch.rand((16, 1500, 35), device='cuda')
-x_v = torch.rand((16, 450,  25), device='cuda')
-x_t = torch.rand((16, 105, 768), device='cuda')
+x = torch.rand((32, 15, 1024), device='cuda')
+model = LinT(input_modality_channels=1024, output_dim=5).cuda()
+y_pred_seq = model(x)
+
+# output shape: (batch_size, time_dimension, output_dimension)
+assert y_pred_seq.size() == torch.Size([32, 15, 5])
+```
+
+### Example 2:
+Multimodal Transformer with Linear Attention.
+The forward pass is performed using 2 input sequences. Both input sequences have the same time dimension.
+```
+import torch
+from linmult import LinMulT
+
+# input shape: (batch_size, time_dimension, feature_dimension)
+x_1 = torch.rand((32, 15, 1024), device='cuda')
+x_2 = torch.rand((32, 15, 160), device='cuda')
+model = LinMulT(input_modality_channels=[1024, 160], output_dim=5).cuda()
+y_pred_cls, y_pred_seq = model([x_1, x_2])
+
+# 1. output shape: (batch_size, output_dimension)
+assert y_pred_cls.size() == torch.Size([32, 5])
+
+# 2. output shape: (batch_size, time_dimension, output_dimension)
+assert y_pred_seq.size() == torch.Size([32, 15, 5])
+```
+
+### Example 3:
+Multimodal Transformer with Linear Attention. The forward pass is performed using 3 input sequences with different time dimensions.
+```
+import torch
+from linmult import LinMulT
+
+# input shape: (batch_size, time_dimension, feature_dimension)
+x_1 = torch.rand((16, 1500, 25), device='cuda')
+x_2 = torch.rand((16, 450, 35), device='cuda')
+x_3 = torch.rand((16, 120, 768), device='cuda')
+model = LinMulT(input_modality_channels=[25, 35, 768],
+                output_dim=5,
+                add_time_collapse=True,
+                add_self_attention_fusion=False).cuda()
+y_pred_cls = model([x_1, x_2, x_3])
 
 # output shape: (batch_size, output_dimension)
-y_true = torch.rand((16, 5), device='cuda')
-y_pred = model([x_a, x_v, x_t])
-
-assert y_pred.size() == torch.Size([16, 5])
+assert y_pred_cls.size() == torch.Size([16, 5])
 ```
 
 # Run tests
 ```
 python -m unittest
 ```
+# Similar projects using LinMulT
 
-# Acknowledgement
-The code is heavily built upon the following two repositories:
+### (2023) BlinkLinMulT
+LinMulT is trained for blink presence detection and eye state recognition tasks.
+Our results demonstrate comparable or superior performance compared to state-of-the-art models on 2 tasks, using 7 public benchmark databases.
+* paper: BlinkLinMulT: Transformer-based Eye Blink Detection (accepted, available soon)
+* code: https://github.com/fodorad/BlinkLinMulT
 
-Multimodal Transformer:
-* paper: Multimodal Transformer for Unaligned Multimodal Language Sequences ([1906.00295](https://arxiv.org/pdf/1906.00295.pdf))
-* code: https://github.com/yaohungt/Multimodal-Transformer
-
-Linear Attention:
-* paper: Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention ([2006.16236](https://arxiv.org/pdf/2006.16236.pdf))
-* code: https://github.com/idiap/fast-transformers
+### (2022) PersonalityLinMulT
+LinMulT is trained for Big Five personality trait estimation using the First Impressions V2 dataset and sentiment estimation using the MOSI and MOSEI datasets.
+* paper: Multimodal Sentiment and Personality Perception Under Speech: A Comparison of Transformer-based Architectures ([pdf](https://proceedings.mlr.press/v173/fodor22a/fodor22a.pdf), [website](https://proceedings.mlr.press/v173/fodor22a.html))
+* code: https://github.com/fodorad/PersonalityLinMulT
 
 
-# Citation
+# Citation - BibTex
 If you found our research helpful or influential please consider citing:
 
-BibTeX:
+### (2023) LinMulT for blink presence detection and eye state recognition:
+```
+@article{blinklinmult-fodor23,
+  title = {BlinkLinMulT: Transformer-based Eye Blink Detection},
+  author = {Fodor, {\'A}d{\'a}m and Fenech, Kristian and L{\H{o}}rincz, Andr{\'a}s},
+  journal = {...}
+  pages = {1--19},
+  year = {2023}
+}
+```
+
+### (2022) LinMulT for personality trait and sentiment estimation:
 ```
 @InProceedings{pmlr-v173-fodor22a,
   title = {Multimodal Sentiment and Personality Perception Under Speech: A Comparison of Transformer-based Architectures},
@@ -85,5 +128,16 @@ BibTeX:
 }
 ```
 
-# Contact:
+# Acknowledgement
+The code is inspired by the following two materials:
+
+### Multimodal Transformer:
+* paper: Multimodal Transformer for Unaligned Multimodal Language Sequences ([1906.00295](https://arxiv.org/pdf/1906.00295.pdf))
+* code: https://github.com/yaohungt/Multimodal-Transformer
+
+### Linear Attention:
+* paper: Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention ([2006.16236](https://arxiv.org/pdf/2006.16236.pdf))
+* code: https://github.com/idiap/fast-transformers
+
+# Contact
 * Ádám Fodor (foauaai@inf.elte.hu)

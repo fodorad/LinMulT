@@ -1,17 +1,19 @@
+##############################################################################
+#                                                                            #
+#   Code is adapted from fairseq:                                            #
+#   https://github.com/facebookresearch/fairseq/blob/main/fairseq/utils.py   #
+#                                                                            #
+##############################################################################
 import math
 from typing import Any, Optional
-
 import torch
 import torch.onnx.operators
-from fairseq import utils
-from torch import Tensor, nn
 
 
-class SinusoidalPositionalEmbedding(nn.Module):
+class SinusoidalPositionalEmbedding(torch.nn.Module):
     """This module produces sinusoidal positional embeddings of any length.
     Padding symbols are ignored.
     """
-
     def __init__(self, embedding_dim, padding_idx=None, init_size=1024):
         super().__init__()
         self.embedding_dim = embedding_dim
@@ -27,9 +29,7 @@ class SinusoidalPositionalEmbedding(nn.Module):
         self.onnx_trace = True
 
     @staticmethod
-    def get_embedding(
-        num_embeddings: int, embedding_dim: int, padding_idx: Optional[int] = None
-    ):
+    def get_embedding(num_embeddings: int, embedding_dim: int, padding_idx: Optional[int] = None):
         """Build sinusoidal embeddings.
         This matches the implementation in tensor2tensor, but differs slightly
         from the description in Section 3.5 of "Attention Is All You Need".
@@ -50,22 +50,17 @@ class SinusoidalPositionalEmbedding(nn.Module):
             emb[padding_idx, :] = 0
         return emb
 
-    def forward(
-        self,
-        input,
-        incremental_state: Optional[Any] = None,
-        timestep: Optional[Tensor] = None,
-        positions: Optional[Any] = None,
-    ):
+    def forward(self, input,
+                incremental_state: Optional[Any] = None,
+                timestep: Optional[torch.Tensor] = None,
+                positions: Optional[Any] = None):
         """Input is expected to be of size [bsz x seqlen]."""
         bspair = torch.onnx.operators.shape_as_tensor(input)
         bsz, seq_len = bspair[0], bspair[1]
         max_pos = self.padding_idx + 1 + seq_len
         if self.weights is None or max_pos > self.weights.size(0):
             # recompute/expand embeddings if needed
-            self.weights = SinusoidalPositionalEmbedding.get_embedding(
-                max_pos, self.embedding_dim, self.padding_idx
-            )
+            self.weights = SinusoidalPositionalEmbedding.get_embedding(max_pos, self.embedding_dim, self.padding_idx)
         self.weights = self.weights.to(self._float_tensor)
 
         if incremental_state is not None:
@@ -73,13 +68,11 @@ class SinusoidalPositionalEmbedding(nn.Module):
             pos = timestep.view(-1)[0] + 1 if timestep is not None else seq_len
             if self.onnx_trace:
                 return (
-                    self.weights.index_select(index=self.padding_idx + pos, dim=0)
-                    .unsqueeze(1)
-                    .repeat(bsz, 1, 1)
+                    self.weights.index_select(index=self.padding_idx + pos, dim=0).unsqueeze(1).repeat(bsz, 1, 1)
                 )
             return self.weights[self.padding_idx + pos, :].expand(bsz, 1, -1)
 
-        positions = utils.make_positions(
+        positions = make_positions(
             input, self.padding_idx, onnx_trace=self.onnx_trace
         )
         if self.onnx_trace:
@@ -96,3 +89,16 @@ class SinusoidalPositionalEmbedding(nn.Module):
             .view(bsz, seq_len, -1)
             .detach()
         )
+
+
+def make_positions(tensor, padding_idx: int, onnx_trace: bool = False):
+    """Replace non-padding symbols with their position numbers.
+
+    Position numbers begin at padding_idx+1. Padding symbols are ignored.
+    """
+    # The series of casts and type-conversions here are carefully
+    # balanced to both work with ONNX export and XLA. In particular XLA
+    # prefers ints, cumsum defaults to output longs, and ONNX doesn't know
+    # how to handle the dtype kwarg in cumsum.
+    mask = tensor.ne(padding_idx).int()
+    return (torch.cumsum(mask, dim=1).type_as(mask) * mask).long() + padding_idx
