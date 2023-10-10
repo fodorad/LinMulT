@@ -1,24 +1,23 @@
 # LinMulT
+[![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![python](https://img.shields.io/badge/Python-3.10-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
+[![pytorch](https://img.shields.io/badge/PyTorch-2.0.1-EE4C2C.svg?style=flat&logo=pytorch)](https://pytorch.org)
 
 General-purpose Multimodal Transformer with Linear Complexity Attention Mechanism.
 
 # Setup
-
-### Environment
-* Python 3.10+
-* PyTorch and cuDNN 1.13.1+cu117
-
-### Install package with pip+git
+### Install package from PyPI
 ```
-pip install -U git+https://github.com/fodorad/LinMulT.git
+pip install linmult
 ```
 
-### Install package from repository root
+### Install package for development
 ```
 git clone https://github.com/fodorad/LinMulT
 cd LinMulT
 pip install -e .
 pip install -U -r requirements.txt
+python -m unittest
 ```
 
 # Quick start
@@ -78,10 +77,6 @@ y_pred_cls = model([x_1, x_2, x_3])
 assert y_pred_cls.size() == torch.Size([16, 5])
 ```
 
-# Run tests
-```
-python -m unittest
-```
 # Similar projects using LinMulT
 
 ### (2023) BlinkLinMulT

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling", "hatch-requirements-txt"]
+build-backend = "hatchling.build"
+
+[project]
+name = "linmult"
+version = "1.2.0"
+description = "General-purpose Multimodal Transformer with Linear Complexity Attention Mechanism."
+keywords = ["multimodal", "transformer", "linear-complexity attention"]
+authors = [
+  { name = "fodorad", email = "foauaai@inf.elte.hu" },
+]
+readme = {"file" = "README.md", "content-type" = "text/markdown"}
+requires-python = ">=3.10"
+license = "MIT"
+dynamic = ["dependencies"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
+[project.urls]
+Documentation = "https://github.com/fodorad/linmult#readme"
+Issues = "https://github.com/fodorad/linmult/issues"
+Source = "https://github.com/fodorad/linmult"
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
