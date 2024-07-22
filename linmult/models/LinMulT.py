@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -8,11 +9,12 @@ from linmult.models.config_loader import load_config
 
 class LinMulT(nn.Module):
 
-    def __init__(self, config : dict | None = None):
+    def __init__(self, config: dict | str):
         """Construct LinMulT: Linear-complexity Multimodal Transformer."""
         super().__init__()
 
-        if config is None: config = {}
+        if isinstance(config, str) and Path(config).exists():
+            config = load_config(config)
 
         self.input_modality_channels = config.get("input_modality_channels") # [M_1, ..., M_N]
         self.output_dim = config.get("output_dim")

@@ -1,13 +1,19 @@
+from pathlib import Path
 import torch
 from torch import nn
 import torch.nn.functional as F
 from linmult.models.transformer import TransformerEncoder
+from linmult.models.config_loader import load_config
 
 
 class LinT(nn.Module):
 
-    def __init__(self, config : dict | None = None):
+    def __init__(self, config: dict | str):
         super().__init__()
+
+        if isinstance(config, str) and Path(config).exists():
+            config = load_config(config)
+
         self.input_dim = config.get("input_dim")
         self.output_dim = config.get("output_dim")
         self.d_model = config.get("d_model", 40)
