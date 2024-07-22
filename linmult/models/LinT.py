@@ -6,53 +6,33 @@ from linmult.models.transformer import TransformerEncoder
 
 class LinT(nn.Module):
 
-    def __init__(self,
-                 input_modality_channels: int,
-                 output_dim: int,
-                 projected_modality_dim: int | list = 40, # d
-                 number_of_heads: int = 8,
-                 number_of_layers: int = 4, # D
-                 embedding_dropout: float = 0.1,
-                 cross_attention_dropout: float = 0.1,
-                 self_attention_dropout: float = 0.0,
-                 relu_dropout: float = 0.1,
-                 residual_dropout: float = 0.1,
-                 output_dropout: float = 0.1,
-                 attention_mask: bool = True):
+    def __init__(self, config : dict | None = None):
         super().__init__()
-        self.input_modality_channels = input_modality_channels
-        self.output_dim = output_dim
-        self.projected_modality_dim = projected_modality_dim
-        self.number_of_heads = number_of_heads
-        self.number_of_layers = number_of_layers
-        self.embedding_dropout = embedding_dropout
-        self.cross_attention_dropout = cross_attention_dropout
-        self.self_attention_dropout = self_attention_dropout
-        self.relu_dropout = relu_dropout
-        self.residual_dropout = residual_dropout
-        self.output_dropout = output_dropout
-        self.attention_mask = attention_mask
+        self.input_dim = config.get("input_dim")
+        self.output_dim = config.get("output_dim")
+        self.d_model = config.get("d_model", 40)
+        self.n_heads = config.get("n_heads", 8)
+        self.n_layers = config.get("n_layers", 4)
+        self.dropout_embedding = config.get("dropout_embedding", 0.1)
+        self.dropout_ca = config.get("dropout_ca", 0.1)
+        self.dropout_sa = config.get("dropout_sa", 0.1)
+        self.dropout_relu = config.get("dropout_relu", 0.1)
+        self.dropout_residual = config.get("dropout_residual", 0.1)
 
         # 1. Temporal convolutional layers
-        self.projector = nn.Conv1d(input_modality_channels,
-                                   projected_modality_dim,
-                                   kernel_size=1,
-                                   padding=0,
-                                   bias=False)
+        self.projector = nn.Conv1d(
+            in_channels=self.input_dim,
+            out_channels=self.d_model,
+            kernel_size=1,
+            padding=0,
+            bias=False
+        ) # (B, C, T) -> (B, d_model, T)
 
-        # 2. Self Attention Linear Transformer
-        self.self_attention_transformer = TransformerEncoder(
-            embedding_dim=self.projected_modality_dim,
-            number_of_heads=self.number_of_heads,
-            number_of_layers=self.number_of_layers,
-            attention_dropout=self.self_attention_dropout,
-            relu_dropout=self.relu_dropout,
-            residual_dropout=self.residual_dropout,
-            embedding_dropout=self.self_attention_dropout,
-            attention_mask=self.attention_mask)
+        # 2. Self-Attention Transformer
+        self.self_attention_transformer = TransformerEncoder(config)
 
         # 3. Projection layer
-        self.out_layer = nn.Linear(self.projected_modality_dim, self.output_dim)
+        self.out_layer = nn.Linear(self.d_model, self.output_dim)
 
     def forward(self, input: torch.Tensor | list[torch.Tensor]) -> torch.Tensor:
         """input tensor of shape (B, T, F)"""
@@ -63,13 +43,30 @@ class LinT(nn.Module):
             else:
                 raise Exception(f'A single tensor is expected got instead {len(input)}.')
 
-        input = input.transpose(1, 2)
+        input = input.transpose(1, 2) # (B, T, C) -> (B, C, T)
 
-        if self.embedding_dropout > 0:
-            input = F.dropout(input, p=self.embedding_dropout, training=self.training)
+        if self.dropout_embedding > 0:
+            input = F.dropout(input, p=self.dropout_embedding, training=self.training)
 
-        proj_x = self.projector(input)
-        proj_x = proj_x.permute(0, 2, 1)
-        hidden_representation = self.self_attention_transformer(proj_x)
-        output_seq = self.out_layer(hidden_representation)
+        proj_x = self.projector(input) # (B, C, T) -> (B, d_model, T)
+        proj_x = proj_x.permute(0, 2, 1) # (B, d_model, T) -> (B, T, d_model)
+        hidden_representation = self.self_attention_transformer(proj_x) # (B, T, d_model) -> (B, T, d_model)
+        output_seq = self.out_layer(hidden_representation) # (B, T, output_dim)
         return output_seq
+
+
+if __name__ == "__main__":
+
+    x = torch.randn(16, 90, 256) # (B, T, F)
+
+    model = LinT(
+        config={
+            'input_dim': x.shape[-1],
+            'output_dim': 5,
+        },
+    )
+
+    output = model(x)
+
+    print("x shape:", x.shape)
+    print("output shape:", output.shape)
