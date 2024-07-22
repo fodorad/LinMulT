@@ -11,7 +11,7 @@ class LinT(nn.Module):
     def __init__(self, config: dict | str):
         super().__init__()
 
-        if isinstance(config, str) and Path(config).exists():
+        if isinstance(config, str):
             config = load_config(config)
 
         self.input_dim = config.get("input_dim")

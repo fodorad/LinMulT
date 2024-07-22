@@ -174,7 +174,9 @@ class TimeReduceFactory:
         time_reduce_type = config.get("time_reduce_type", "attentionpool1d")
 
         if time_reduce_type == "attentionpool":
-            return AttentionPooling(config.get("d_model", 40))
+            return AttentionPooling(
+                (len(config.get("input_modality_channels"))-1) * config.get("d_model", 40)
+            )
         elif time_reduce_type == "gmp":
             return GlobalMaxPooling()
         elif time_reduce_type == "gap":

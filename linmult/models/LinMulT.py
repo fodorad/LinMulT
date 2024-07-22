@@ -13,7 +13,7 @@ class LinMulT(nn.Module):
         """Construct LinMulT: Linear-complexity Multimodal Transformer."""
         super().__init__()
 
-        if isinstance(config, str) and Path(config).exists():
+        if isinstance(config, str):
             config = load_config(config)
 
         self.input_modality_channels = config.get("input_modality_channels") # [M_1, ..., M_N]
@@ -99,8 +99,14 @@ class LinMulT(nn.Module):
                 }
             )
 
+        if self.add_cm_attention_back and self.n_modalities == 2:
+            combined_dim = self.d_model
+        elif self.add_cm_attention_back and self.n_modalities > 2:
+            combined_dim = (self.n_modalities - 1) * (self.n_modalities - 1) * self.d_model
+        else:
+            (self.n_modalities - 1) * self.n_modalities * self.d_model
+
         # Optional: FFN + Residual
-        combined_dim = self.d_model if self.add_cm_attention_back else (self.n_modalities - 1) * self.n_modalities * self.d_model
         if self.add_ffn_fusion:
             self.projection_1 = nn.Linear(combined_dim, combined_dim)
             self.projection_2 = nn.Linear(combined_dim, combined_dim)
