@@ -20,69 +20,12 @@ pip install -U -r requirements.txt
 python -m unittest
 ```
 
-# Quick start
-### Example 1:
-Simple transformer encoder with linear attention.
-The forward pass is performed using an input sequence.
-```
-import torch
-from linmult import LinT
-
-# input shape: (batch_size, time_dimension, feature_dimension)
-x = torch.rand((32, 15, 1024), device='cuda')
-model = LinT(input_modality_channels=1024, output_dim=5).cuda()
-y_pred_seq = model(x)
-
-# output shape: (batch_size, time_dimension, output_dimension)
-assert y_pred_seq.size() == torch.Size([32, 15, 5])
-```
-
-### Example 2:
-Multimodal Transformer with Linear Attention.
-The forward pass is performed using 2 input sequences. Both input sequences have the same time dimension.
-```
-import torch
-from linmult import LinMulT
-
-# input shape: (batch_size, time_dimension, feature_dimension)
-x_1 = torch.rand((32, 15, 1024), device='cuda')
-x_2 = torch.rand((32, 15, 160), device='cuda')
-model = LinMulT(input_modality_channels=[1024, 160], output_dim=5).cuda()
-y_pred_cls, y_pred_seq = model([x_1, x_2])
-
-# 1. output shape: (batch_size, output_dimension)
-assert y_pred_cls.size() == torch.Size([32, 5])
-
-# 2. output shape: (batch_size, time_dimension, output_dimension)
-assert y_pred_seq.size() == torch.Size([32, 15, 5])
-```
-
-### Example 3:
-Multimodal Transformer with Linear Attention. The forward pass is performed using 3 input sequences with different time dimensions.
-```
-import torch
-from linmult import LinMulT
-
-# input shape: (batch_size, time_dimension, feature_dimension)
-x_1 = torch.rand((16, 1500, 25), device='cuda')
-x_2 = torch.rand((16, 450, 35), device='cuda')
-x_3 = torch.rand((16, 120, 768), device='cuda')
-model = LinMulT(input_modality_channels=[25, 35, 768],
-                output_dim=5,
-                add_time_collapse=True,
-                add_self_attention_fusion=False).cuda()
-y_pred_cls = model([x_1, x_2, x_3])
-
-# output shape: (batch_size, output_dimension)
-assert y_pred_cls.size() == torch.Size([16, 5])
-```
-
 # Similar projects using LinMulT
 
 ### (2023) BlinkLinMulT
 LinMulT is trained for blink presence detection and eye state recognition tasks.
 Our results demonstrate comparable or superior performance compared to state-of-the-art models on 2 tasks, using 7 public benchmark databases.
-* paper: BlinkLinMulT: Transformer-based Eye Blink Detection (accepted, available soon)
+* paper: BlinkLinMulT: Transformer-based Eye Blink Detection ([pdf](https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf), [website](https://www.mdpi.com/2313-433X/9/10/196))
 * code: https://github.com/fodorad/BlinkLinMulT
 
 ### (2022) PersonalityLinMulT
@@ -135,4 +78,4 @@ The code is inspired by the following two materials:
 * code: https://github.com/idiap/fast-transformers
 
 # Contact
-* Ádám Fodor (foauaai@inf.elte.hu)
+* Ádám Fodor (foauaai@inf.elte.hu) [[website](https://adamfodor.com)]
