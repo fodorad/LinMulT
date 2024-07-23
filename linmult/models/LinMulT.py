@@ -104,7 +104,7 @@ class LinMulT(nn.Module):
         elif self.add_cm_attention_back and self.n_modalities > 2:
             combined_dim = (self.n_modalities - 1) * (self.n_modalities - 1) * self.d_model
         else:
-            (self.n_modalities - 1) * self.n_modalities * self.d_model
+            combined_dim = (self.n_modalities - 1) * self.n_modalities * self.d_model
 
         # Optional: FFN + Residual
         if self.add_ffn_fusion:
@@ -242,7 +242,7 @@ if __name__ == "__main__":
     x_1 = torch.rand((batch_size, 450, 256))
     x_2 = torch.rand((batch_size, 1500, 25))
 
-    config_model = load_config('configs/2M_S_2O_V_GAP.yaml')
+    config_model = load_config('configs/2M_S_2O_V_GAP_mha.yaml')
     #config_model = load_config('configs/2M_S_2O_S_CMB.yaml')
 
     model = LinMulT(config=config_model)

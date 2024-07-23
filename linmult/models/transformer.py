@@ -91,6 +91,7 @@ class TransformerEncoderLayer(nn.Module):
 
         self.n_heads = config.get("n_heads", 8)
         self.d_model = config.get("d_model", 40)
+        self.attention_type = config.get("attention_type", "linear")
         self.attention = AttentionFactory.create_attention_layer(self.d_model, self.n_heads, config)
 
         # Feedforward network layers
@@ -142,7 +143,10 @@ class TransformerEncoderLayer(nn.Module):
                 key_mask = (x_k == 0).all(dim=2)
                 key_mask = key_mask.bool() # (B, T_2)
 
-            x_q, _ = self.attention(x_q, x_k, x_v, query_mask=query_mask, key_mask=key_mask) # returns (B, T_1, F) and (B, T_1, T_2)
+            if self.attention_type == "mha":
+                x_q, _ = self.attention(x_q, x_k, x_v)
+            else:
+                x_q, _ = self.attention(x_q, x_k, x_v, query_mask=query_mask, key_mask=key_mask) # returns (B, T_1, F) and (B, T_1, T_2)
         else: # self-attention
             if query_mask is not None and not query_mask.shape == x_q.shape[:2] and isinstance(query_mask, torch.BoolTensor):
                 raise ValueError(f"Expected query mask has (B, T) shape and BoolTensor type, got instead: {query_mask.shape} and {type(query_mask)}")
@@ -151,7 +155,10 @@ class TransformerEncoderLayer(nn.Module):
                 query_mask = (x_q == 0).all(dim=2)
                 query_mask = query_mask.bool() # (B, T_1)
 
-            x_q, _ = self.attention(x_q, x_q, x_q, query_mask=query_mask) # returns (B, T_1, F) and (B, T_1, T_1)
+            if self.attention_type == "mha":
+                x_q, _ = self.attention(x_q, x_q, x_q)
+            else:
+                x_q, _ = self.attention(x_q, x_q, x_q, query_mask=query_mask) # returns (B, T_1, F) and (B, T_1, T_1)
 
         x_q = F.dropout(x_q, p=self.dropout_residual, training=self.training)
         x_q = residual + x_q

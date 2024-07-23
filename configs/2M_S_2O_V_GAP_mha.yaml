@@ -1,0 +1,19 @@
+input_modality_channels:
+  - 256
+  - 25
+output_dim:
+  - 1
+  - 1
+d_model: 40
+n_heads: 8
+n_layers: 6
+dropout_embedding: 0.
+dropout_ca: 0.1
+dropout_sa: 0.1
+dropout_relu: 0.1
+dropout_residual: 0.1
+dropout_output: 0
+auto_mask: True
+time_reduce_type: gap
+
+attention_type: mha
