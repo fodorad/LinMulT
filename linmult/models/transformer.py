@@ -142,6 +142,8 @@ class TransformerEncoderLayer(nn.Module):
                 query_mask = query_mask.bool() # (B, T_1)
                 key_mask = (x_k == 0).all(dim=2)
                 key_mask = key_mask.bool() # (B, T_2)
+                query_mask = query_mask.to(x_q.device)
+                key_mask = key_mask.to(x_q.device)
 
             if self.attention_type == "mha":
                 x_q, _ = self.attention(x_q, x_k, x_v)
@@ -154,6 +156,7 @@ class TransformerEncoderLayer(nn.Module):
             if self.auto_mask:
                 query_mask = (x_q == 0).all(dim=2)
                 query_mask = query_mask.bool() # (B, T_1)
+                query_mask = query_mask.to(x_q.device)
 
             if self.attention_type == "mha":
                 x_q, _ = self.attention(x_q, x_q, x_q)
