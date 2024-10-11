@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class AttentionFactory:
@@ -10,6 +11,10 @@ class AttentionFactory:
                                n_heads: int = 8,
                                config: dict | None = None):
         attention_type = config.get("attention_type", "bigbird")
+
+        if attention_type not in {"bigbird", "linear", "softmax", "mha"}:
+            raise ValueError(f"Given attention_type ({attention_type}) is not supported." \
+                             "Choose from {'bigbird', 'linear', 'softmax', 'mha'}.")
 
         if attention_type == "bigbird":
             return AttentionLayer(
@@ -34,7 +39,17 @@ class AttentionFactory:
                 d_model=d_model,
                 n_heads=n_heads
             )
-        else:
+        elif attention_type == "softmax":
+            return AttentionLayer(
+                SoftmaxAttention(
+                    d_model=d_model,
+                    num_heads=n_heads,
+                    eps=config.get("eps", 1e-6)
+                ),
+                d_model=d_model,
+                n_heads=n_heads
+            )
+        else: # mha
             return nn.MultiheadAttention(
                 embed_dim=d_model,
                 num_heads=n_heads,
@@ -202,6 +217,49 @@ class BigBirdAttention(nn.Module):
             attn_output[:, idx:idx+1, :, :] += torch.einsum("bhnm,bmhd->bnhd", rand_attn_weights, rand_v)
 
         return attn_output.contiguous(), None # Shape: (B, tgt_len, num_heads, head_dim)
+
+
+class SoftmaxAttention(torch.nn.Module):
+    """Implement standard softmax attention with O(N^2 D) complexity.
+
+    Given the queries, keys, and values as Q, K, V, the attention is computed as:
+
+        V' = softmax(Q.mm(K.t()), dim=-1).mm(V),
+
+    where the dot product of Q and K is used to determine the attention scores,
+    which are then applied to the values V.
+
+    Arguments
+    ---------
+        eps: float, a small number to ensure numerical stability in softmax
+             (default: 1e-6)
+    """
+    def __init__(self, d_model: int, num_heads: int, eps: float = 1e-6):
+        super(SoftmaxAttention, self).__init__()
+        self.num_heads = num_heads
+        self.d_model = d_model
+        self.query_dimensions = d_model // num_heads
+        self.eps = eps
+
+    def forward(self, queries, keys, values, *args, **kwargs):
+        # Compute the dot product between queries and keys
+        # Q shape: (B, T_1, H, D), K shape: (B, T_2, H, D)
+        # Attention matrix A shape: (B, H, T_1, T_2)
+        attention_scores = torch.einsum("nlhd,nshd->nhls", queries, keys)
+        
+        # Apply scaling for stability
+        scaling_factor = self.query_dimensions ** 0.5
+        attention_scores = attention_scores / scaling_factor
+        
+        # Apply the softmax to the attention matrix
+        attention_weights = F.softmax(attention_scores, dim=-1)
+
+        # Compute the new values by applying the attention weights to the values
+        # V shape: (B, T_2, H, D)
+        # Output shape: (B, T_1, H, D)
+        V = torch.einsum("nhls,nshd->nlhd", attention_weights, values)
+
+        return V.contiguous(), attention_weights
 
 
 #########################################################################

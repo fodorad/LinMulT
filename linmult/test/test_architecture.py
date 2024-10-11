@@ -45,12 +45,12 @@ class TestArchitecture(unittest.TestCase):
         x = torch.rand((self.batch_size, 450, 256))
         model = LinT(
             {
-                'input_dim': 256,
-                'output_dim': 5
+                'input_modality_channels': 256,
+                'output_dim': (5,)
             }
         )
         output_seq = model(x)
-        self.assertEqual(output_seq.detach().cpu().size(), (self.batch_size, 450, 5))
+        self.assertEqual(output_seq[0].detach().cpu().size(), (self.batch_size, 450, 5))
 
 
 if __name__ == '__main__':
