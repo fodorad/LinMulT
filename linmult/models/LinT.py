@@ -1,4 +1,3 @@
-from pathlib import Path
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -17,14 +16,10 @@ class LinT(nn.Module):
         self.input_dim = config.get("input_modality_channels")
         self.output_dim = config.get("output_dim")
         self.d_model = config.get("d_model", 40)
-        self.n_heads = config.get("n_heads", 8)
-        self.n_layers = config.get("n_layers", 4)
         self.dropout_embedding = config.get("dropout_embedding", 0.1)
-        self.dropout_ca = config.get("dropout_ca", 0.1)
-        self.dropout_sa = config.get("dropout_sa", 0.1)
         self.dropout_relu = config.get("dropout_relu", 0.1)
         self.dropout_residual = config.get("dropout_residual", 0.1)
-
+        self.module_time_reduce = config.get("module_time_reduce", None)
 
         # 1. Temporal convolutional layers
         self.projector = nn.Conv1d(
@@ -39,18 +34,17 @@ class LinT(nn.Module):
         self.self_attention_transformer = TransformerEncoder(config)
 
         # Optional: time reduce module
-        self.add_time_collapse = False
-        if config.get("time_reduce_type", None) is not None:
+        if self.module_time_reduce:
             self.time_reduce_module = TimeReduceFactory.create_time_reduce_layer(config)
-            self.add_time_collapse = True
 
         # 3. Output layer
-        self.out_heads = nn.ModuleList([
+        self.output_heads = nn.ModuleList([
             nn.Linear(self.d_model, output_dim)
             for output_dim in self.output_dim
         ])
 
-    def forward(self, input: torch.Tensor | list[torch.Tensor]) -> torch.Tensor:
+
+    def forward(self, input: torch.Tensor, mask: torch.BoolTensor = None) -> torch.Tensor:
         """input tensor of shape (B, T, F)"""
 
         if isinstance(input, list):
@@ -58,6 +52,12 @@ class LinT(nn.Module):
                 input = input[0]
             else:
                 raise Exception(f'A single tensor is expected got instead {len(input)}.')
+            
+        if isinstance(mask, list):
+            if len(mask) == 1:
+                mask = mask[0]
+            else:
+                raise Exception(f'A single mask is expected got instead {len(mask)}.')
 
         input = input.transpose(1, 2) # (B, T, C) -> (B, C, T)
 
@@ -66,41 +66,51 @@ class LinT(nn.Module):
 
         proj_x = self.projector(input) # (B, C, T) -> (B, d_model, T)
         proj_x = proj_x.permute(0, 2, 1) # (B, d_model, T) -> (B, T, d_model)
-        hidden_representation = self.self_attention_transformer(proj_x) # (B, T, d_model) -> (B, T, d_model)
+        hidden_representation = self.self_attention_transformer(proj_x, query_mask=mask) # (B, T, d_model) -> (B, T, d_model)
 
-        if self.add_time_collapse:
-            hidden_representation = self.time_reduce_module(hidden_representation) # (B, T, d_model) -> (B, d_model)
+        if self.module_time_reduce:
+            hidden_representation = self.time_reduce_module(hidden_representation, mask) # (B, T, d_model) -> (B, d_model)
 
-        output_cls = [out_layer(hidden_representation) for out_layer in self.out_heads] # (B, output_dim) or (B, T, output_dim)
-        return output_cls
-
-
-if __name__ == "__main__":
-
-    x = torch.randn(16, 90, 256) # (B, T, F)
-
-    model = LinT(
-        config={
-            'input_modality_channels': x.shape[-1],
-            'output_dim': (5,),
-        },
-    )
-
-    output = model(x)
-
-    print("x shape:", x.shape)
-    print("output shape:", output[0].shape)
+        outputs = self._apply_output_heads(hidden_representation, mask) # (B, output_dim) or (B, T, output_dim)
+        return outputs
 
 
-    model = LinT(
-        config={
-            'input_modality_channels': x.shape[-1],
-            'output_dim': (5,),
-            'time_reduce_type': 'attentionpool'
-        },
-    )
+    def _apply_output_heads(self, x: torch.Tensor, mask: torch.BoolTensor = None) -> list[torch.Tensor]:
+        """Apply output heads"""
+        if x.ndim == 3 and mask is not None: # (B, F)
+            # apply the mask to filter out invalid timesteps in the output
+            expanded_masks = [mask.unsqueeze(-1).expand(-1, -1, output_dim) for output_dim in self.output_dim]
+            return [output_head(x) * mask for output_head, mask in zip(self.output_heads, expanded_masks)]
+        
+        return [output_head(x) for output_head in self.output_heads]
 
-    output = model(x)
 
-    print("x shape:", x.shape)
-    print("output shape:", output[0].shape)
+    @classmethod
+    def apply_logit_aggregation(cls, x: list[torch.Tensor], method: str = 'meanpooling') -> list[torch.Tensor]:
+        """
+        Aggregate logits across the time dimension, ignoring timesteps with all zero features.
+
+        Args:
+            x (list[torch.Tensor]): List of tensors, each of shape (B, T, F).
+            method (str): Aggregation method. Options are 'meanpooling' or 'maxpooling'.
+
+        Returns:
+            list[torch.Tensor]: Aggregated logits, each of shape (B, F).
+        """
+        if method == 'maxpooling':
+            return [
+                torch.max(
+                    logits.masked_fill(logits.abs().sum(dim=-1, keepdim=True) == 0, float('-inf')), 
+                    dim=1
+                )[0]
+                for logits in x
+            ]
+
+        elif method == 'meanpooling':
+            return [
+                (logits.sum(dim=1) / (logits.abs().sum(dim=-1) > 0).sum(dim=1, keepdim=True).clamp(min=1))
+                for logits in x
+            ]
+
+        else:
+            raise ValueError(f"Method {method} for logit aggregation is not supported.")

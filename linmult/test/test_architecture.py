@@ -6,51 +6,171 @@ from linmult.models.transformer import TransformerEncoder
 
 class TestArchitecture(unittest.TestCase):
 
-    batch_size: int = 16
 
-    def test_transformer_encoder(self):
-        encoder = TransformerEncoder({'d_model': 300, 'n_heads': 10})
-        x_q = torch.rand(20, 2, 300)
-        x_k = torch.rand(20, 2, 300)
-        x_v = torch.rand(20, 2, 300)
-        self.assertEqual(encoder(x_q, x_k, x_v).size(), (20, 2, 300))
+    @classmethod
+    def setUpClass(cls):
+        cls.batch_size = 8
+        cls.time_dim_1 = 1500
+        cls.time_dim_2 = 450
+        cls.time_dim_3 = 450
+        cls.feature_dim_1 = 25
+        cls.feature_dim_2 = 35
+        cls.feature_dim_3 = 256
+        cls.output_dim_1 = 5
+        cls.output_dim_2 = 1
+        cls.x_1 = torch.rand((cls.batch_size, cls.time_dim_1, cls.feature_dim_1)) # Shape: (B, T_1, F_1)
+        cls.x_2 = torch.rand((cls.batch_size, cls.time_dim_2, cls.feature_dim_2)) # Shape: (B, T_2, F_2)
+        cls.x_3 = torch.rand((cls.batch_size, cls.time_dim_3, cls.feature_dim_3)) # Shape: (B, T_3, F_3)
+
 
     def test_same_time_dim(self):
-        x_1 = torch.rand((self.batch_size, 30, 1024))
-        x_2 = torch.rand((self.batch_size, 30, 160))
         model = LinMulT(
             {
-                'input_modality_channels': (1024, 160),
-                'output_dim': (5,)
+                'input_modality_channels': [self.feature_dim_2, self.feature_dim_3],
+                'output_dim': [self.output_dim_1]
             }
         )
-        output_cls, output_seq = model([x_1, x_2])
-        self.assertEqual(output_cls[0].detach().cpu().size(), (self.batch_size, 5))
-        self.assertEqual(output_seq[0].detach().cpu().size(), (self.batch_size, 30, 5))
+        output_seq = model([self.x_2, self.x_3])
+        output_cls = LinMulT.apply_logit_aggregation(output_seq, 'meanpooling')
+        self.assertEqual(output_cls[0].shape, (self.batch_size, self.output_dim_1))
+        self.assertEqual(output_seq[0].shape, (self.batch_size, self.time_dim_2, self.output_dim_1))
 
-    def test_different_time_dim(self):
-        x_1 = torch.rand((self.batch_size, 1500, 512))
-        x_2 = torch.rand((self.batch_size, 450, 256))
+
+    def test_attention_linear(self):
         model = LinMulT(
             {
-                'input_modality_channels': (512, 256),
-                'output_dim': (5,),
-                'time_reduce_type': 'gap'
+                'input_modality_channels': [self.feature_dim_2, self.feature_dim_3],
+                'output_dim': [self.output_dim_1],
+                'attention_type': 'linear'
             }
         )
-        output_cls = model([x_1, x_2])
-        self.assertEqual(output_cls[0].detach().cpu().size(), (self.batch_size, 5))
+        self.assertEqual(model.branch_crossmodal_transformers[0][0].layers[0].attention_type, 'linear')
+
+
+    def test_attention_bigbird(self):
+        model = LinMulT(
+            {
+                'input_modality_channels': [self.feature_dim_2, self.feature_dim_3],
+                'output_dim': [self.output_dim_1],
+                'attention_type': 'bigbird'
+            }
+        )
+        self.assertEqual(model.branch_crossmodal_transformers[0][0].layers[0].attention_type, 'bigbird')
+
+
+    def test_attention_mha(self):
+        model = LinMulT(
+            {
+                'input_modality_channels': [self.feature_dim_2, self.feature_dim_3],
+                'output_dim': [self.output_dim_1],
+                'attention_type': 'mha'
+            }
+        )
+        self.assertEqual(model.branch_crossmodal_transformers[0][0].layers[0].attention_type, 'mha')
+
+
+    def test_module_time_reduce_gap(self):
+        model = LinMulT(
+            {
+                'input_modality_channels': [self.feature_dim_1, self.feature_dim_2],
+                'output_dim': [self.output_dim_1],
+                'module_time_reduce': 'gap'
+            }
+        )
+        output = model([self.x_1, self.x_2])
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
+
+    def test_module_time_reduce_gmp(self):
+        model = LinMulT(
+            {
+                'input_modality_channels': [self.feature_dim_1, self.feature_dim_2],
+                'output_dim': [self.output_dim_1],
+                'module_time_reduce': 'gmp'
+            }
+        )
+        output = model([self.x_1, self.x_2])
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
+
+    def test_module_time_reduce_attentionpool(self):
+        model = LinMulT(
+            {
+                'input_modality_channels': [self.feature_dim_1, self.feature_dim_2],
+                'output_dim': [self.output_dim_1],
+                'module_time_reduce': 'attentionpool'
+            }
+        )
+        output = model([self.x_1, self.x_2])
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
+
+    def test_multimodal_signal_type_padding(self):
+        model = LinMulT(
+            {
+                'input_modality_channels': [self.feature_dim_1, self.feature_dim_2],
+                'output_dim': [self.output_dim_1],
+                'module_time_reduce': 'gap',
+                'multimodal_signal_type': 'padding',
+                'multimodal_signal_time_dim': self.time_dim_1
+            }
+        )
+        output = model([self.x_1, self.x_2])
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
+
+    def test_multimodal_signal_type_truncating(self):
+        model = LinMulT(
+            {
+                'input_modality_channels': [self.feature_dim_1, self.feature_dim_2],
+                'output_dim': [self.output_dim_1],
+                'module_time_reduce': 'gap',
+                'multimodal_signal_type': 'padding',
+                'multimodal_signal_time_dim': self.time_dim_2
+            }
+        )
+        output = model([self.x_1, self.x_2])
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
+
+    def test_multimodal_signal_type_gap(self):
+        model = LinMulT(
+            {
+                'input_modality_channels': [self.feature_dim_1, self.feature_dim_2],
+                'output_dim': [self.output_dim_1],
+                'module_time_reduce': 'gap',
+                'multimodal_signal_type': 'gap',
+                'multimodal_signal_time_dim': self.time_dim_2
+            }
+        )
+        output = model([self.x_1, self.x_2])
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
+
+    def test_multimodal_signal_type_gmp(self):
+        model = LinMulT(
+            {
+                'input_modality_channels': [self.feature_dim_1, self.feature_dim_2],
+                'output_dim': [self.output_dim_1],
+                'module_time_reduce': 'gap',
+                'multimodal_signal_type': 'gmp',
+                'multimodal_signal_time_dim': self.time_dim_2
+            }
+        )
+        output = model([self.x_1, self.x_2])
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
 
     def test_lint(self):
-        x = torch.rand((self.batch_size, 450, 256))
         model = LinT(
             {
-                'input_modality_channels': 256,
-                'output_dim': (5,)
+                'input_modality_channels': self.feature_dim_1,
+                'output_dim': [self.output_dim_1],
+                'module_time_reduce': 'attentionpool',
             }
         )
-        output_seq = model(x)
-        self.assertEqual(output_seq[0].detach().cpu().size(), (self.batch_size, 450, 5))
+        output = model(self.x_1)
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
 
 
 if __name__ == '__main__':

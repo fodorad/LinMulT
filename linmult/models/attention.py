@@ -10,9 +10,11 @@ class AttentionFactory:
     def create_attention_layer(d_model: int = 768,
                                n_heads: int = 8,
                                config: dict | None = None):
-        attention_type = config.get("attention_type", "bigbird")
 
-        if attention_type not in {"bigbird", "linear", "softmax", "mha"}:
+        if config is None: config = {}
+        attention_type = config.get("attention_type", "linear")
+
+        if attention_type not in {"linear", "softmax", "bigbird", "mha"}:
             raise ValueError(f"Given attention_type ({attention_type}) is not supported." \
                              "Choose from {'bigbird', 'linear', 'softmax', 'mha'}.")
 
@@ -129,21 +131,23 @@ class AttentionLayer(torch.nn.Module):
         else:
             # Create combined attention mask
             if query_mask is None:
-                query_mask = torch.zeros(size=queries.shape[:2]).bool()
+                query_mask = torch.ones(size=queries.shape[:2]).bool() # all values are used in the calculations
             
             if key_mask is None:
-                key_mask = torch.zeros(size=keys.shape[:2]).bool()
+                key_mask = torch.ones(size=keys.shape[:2]).bool() # all values are used in the calculations
 
-            attn_mask = query_mask.unsqueeze(-1) * key_mask.unsqueeze(1)
-            attn_mask = attn_mask.float() * -1e9 # Convert to float and apply large negative value
-            attn_mask = attn_mask.unsqueeze(1) # Shape: (B, 1, T_1, T_2)
+            combined_mask = query_mask.unsqueeze(-1) * key_mask.unsqueeze(1)
+            attn_mask = (~combined_mask).float() * -1e9 # Convert to float and apply large negative value
+            attn_mask = attn_mask.unsqueeze(1) # Shape: (B, 1, T_1, T_2), value 0: used for calculations, large negative number: ignored timestep
 
         # Compute the attention
         new_values, attn = self.inner_attention(
             queries,
             keys,
             values,
-            attn_mask
+            attn_mask=attn_mask,
+            query_mask=query_mask,
+            key_mask=key_mask
         )
         new_values = new_values.view(B, T_1, -1)
 
@@ -164,7 +168,7 @@ class BigBirdAttention(nn.Module):
         self.dropout = nn.Dropout(dropout)
         assert self.head_dim * num_heads == d_model, "embed_dim must be divisible by num_heads"
 
-    def forward(self, q, k, v, attn_mask):
+    def forward(self, q, k, v, attn_mask=None, *args, **kwargs):
         batch_size, tgt_len, n_heads, head_dim = q.size()
         _, src_len, _, _ = k.size()
 
@@ -241,7 +245,7 @@ class SoftmaxAttention(torch.nn.Module):
         self.query_dimensions = d_model // num_heads
         self.eps = eps
 
-    def forward(self, queries, keys, values, *args, **kwargs):
+    def forward(self, queries, keys, values, attn_mask=None, *args, **kwargs):
         # Compute the dot product between queries and keys
         # Q shape: (B, T_1, H, D), K shape: (B, T_2, H, D)
         # Attention matrix A shape: (B, H, T_1, T_2)
@@ -250,6 +254,10 @@ class SoftmaxAttention(torch.nn.Module):
         # Apply scaling for stability
         scaling_factor = self.query_dimensions ** 0.5
         attention_scores = attention_scores / scaling_factor
+
+        # Apply mask
+        if attn_mask is not None:
+            attention_scores += attn_mask # (B, 1, T_1, T_2)
         
         # Apply the softmax to the attention matrix
         attention_weights = F.softmax(attention_scores, dim=-1)
@@ -302,11 +310,20 @@ class LinearAttention(torch.nn.Module):
         self.feature_map = feature_map(query_dimensions) if feature_map else elu_feature_map(query_dimensions)
         self.eps = eps
 
-    def forward(self, queries, keys, values, *args, **kwargs):
+    def forward(self, queries, keys, values, query_mask=None, key_mask=None, *args, **kwargs):
         # Apply the feature map to the queries and keys
         self.feature_map.new_feature_map(queries.device)
         Q = self.feature_map.forward_queries(queries) # Shape: (B, T_1, H, D)
         K = self.feature_map.forward_keys(keys) # Shape: (B, T_2, H, D)
+
+        # Apply the query and key masks, if provided
+        if query_mask is not None:
+            query_mask = query_mask.unsqueeze(-1).unsqueeze(-1) # Shape: (B, T_1) -> (B, T_1, 1, 1)
+            Q = Q * query_mask  # zero out positions in Q where query_mask is 0
+
+        if key_mask is not None:
+            key_mask = key_mask.unsqueeze(-1).unsqueeze(-1) # Shape: (B, T_2) -> (B, T_2, 1, 1)
+            K = K * key_mask  # zero out positions in K where key_mask is 0
 
         # Compute the KV matrix, namely the dot product of keys and values so
         # that we never explicitly compute the attention matrix and thus
@@ -388,8 +405,10 @@ if __name__ == "__main__":
     num_global_tokens = 3
     num_random_tokens = 4
 
-    bigbird_attention = AttentionLayer(
-        BigBirdAttention(d_model, n_heads, block_size, num_global_tokens, num_random_tokens),
+    mha = nn.MultiheadAttention(embed_dim=d_model, num_heads=n_heads, batch_first=True)
+
+    softmax_attention = AttentionLayer(
+        SoftmaxAttention(d_model, n_heads),
         d_model=d_model,
         n_heads=n_heads
     )
@@ -400,7 +419,11 @@ if __name__ == "__main__":
         n_heads=n_heads
     )
 
-    mha = nn.MultiheadAttention(embed_dim=d_model, num_heads=n_heads, batch_first=True)
+    bigbird_attention = AttentionLayer(
+        BigBirdAttention(d_model, n_heads, block_size, num_global_tokens, num_random_tokens),
+        d_model=d_model,
+        n_heads=n_heads
+    )
 
     queries = torch.randn(16, 300, d_model)
     keys = torch.randn(16, 400, d_model)
@@ -410,19 +433,40 @@ if __name__ == "__main__":
 
     start = time()
     mha_output, _ = mha(queries, keys, values)
-    elapsed_linear = time() - start
-    print(f"Elapsed time for mha: {elapsed_linear:.4f} seconds")
+    runtime = time() - start
+    print(f"Elapsed time for mha: {runtime:.4f} seconds")
+
+    start = time()
+    softmax_output, _ = softmax_attention(queries, keys, values)
+    runtime = time() - start
+    print(f"Elapsed time for softmax_attention: {runtime:.4f} seconds")
+
+    start = time()
+    softmax_output, _ = softmax_attention(queries, keys, values, query_mask=query_mask, key_mask=key_mask)
+    runtime = time() - start
+    print(f"Elapsed time for softmax_attention with masking: {runtime:.4f} seconds")
 
     start = time()
     linear_output, _ = linear_attention(queries, keys, values)
-    elapsed_linear = time() - start
-    print(f"Elapsed time for linear_attention: {elapsed_linear:.4f} seconds")
+    runtime = time() - start
+    print(f"Elapsed time for linear_attention: {runtime:.4f} seconds")
+
+    start = time()
+    linear_output, _ = linear_attention(queries, keys, values, query_mask=query_mask, key_mask=key_mask)
+    runtime = time() - start
+    print(f"Elapsed time for linear_attention with masking: {runtime:.4f} seconds")
     
     start = time()
-    bigbird_output, _ = bigbird_attention(queries, keys, values, query_mask, key_mask)
-    elapsed_bigbird = time() - start
-    print(f"Elapsed time for bigbird_attention: {elapsed_bigbird:.4f} seconds")
+    bigbird_output, _ = bigbird_attention(queries, keys, values)
+    runtime = time() - start
+    print(f"Elapsed time for bigbird_attention: {runtime:.4f} seconds")
+
+    start = time()
+    bigbird_output, _ = bigbird_attention(queries, keys, values, query_mask=query_mask, key_mask=key_mask)
+    runtime = time() - start
+    print(f"Elapsed time for bigbird_attention with masking: {runtime:.4f} seconds")
     
-    assert bigbird_output.shape == (16,300,512)
-    assert linear_output.shape == (16,300,512)
     assert mha_output.shape == (16,300,512)
+    assert softmax_output.shape == (16,300,512)
+    assert linear_output.shape == (16,300,512)
+    assert bigbird_output.shape == (16,300,512)
