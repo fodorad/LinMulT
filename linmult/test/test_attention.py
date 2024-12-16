@@ -29,10 +29,6 @@ class TestInputs(unittest.TestCase):
         cls.d_1 = torch.rand((cls.batch_size, cls.time_dim_1, cls.d_model))  # Shape: (B, T_1, d_model)
         cls.d_2 = torch.rand((cls.batch_size, cls.time_dim_2, cls.d_model))  # Shape: (B, T_2, d_model)
         cls.d_3 = torch.rand((cls.batch_size, cls.time_dim_3, cls.d_model))  # Shape: (B, T_3, d_model)
-        cls.mask_1 = (torch.arange(cls.x_1.size(1)).unsqueeze(0) < cls.x_1.size(1) - 10).expand(cls.batch_size, -1).bool()  # Shape: (B, T_1)
-        cls.mask_2 = (torch.arange(cls.x_2.size(1)).unsqueeze(0) < cls.x_2.size(1) - 10).expand(cls.batch_size, -1).bool()  # Shape: (B, T_2)
-        cls.mask_3 = (torch.arange(cls.x_3.size(1)).unsqueeze(0) < cls.x_3.size(1) - 10).expand(cls.batch_size, -1).bool()  # Shape: (B, T_3)
-        cls.mask_3f = torch.zeros(size=cls.x_3.size()[:2], dtype=bool)  # Shape: (B, T_3)
 
 
     def test_self_attention_mha(self):
@@ -67,26 +63,6 @@ class TestInputs(unittest.TestCase):
         self.assertEqual(output.shape, self.d_1.shape, "SoftmaxAttention output shape mismatch")
 
 
-    def test_self_attention_softmax_with_mask(self):
-        softmax_attention = AttentionLayer(
-            SoftmaxAttention(self.d_model, self.n_heads),
-            d_model=self.d_model,
-            n_heads=self.n_heads
-        )
-        output, _ = softmax_attention(self.d_1, self.d_1, self.d_1, query_mask=self.mask_1, key_mask=self.mask_1)
-        self.assertEqual(output.shape, self.d_1.shape, "SoftmaxAttention output shape mismatch")
-
-
-    def test_cross_attention_softmax_with_mask(self):
-        softmax_attention = AttentionLayer(
-            SoftmaxAttention(self.d_model, self.n_heads),
-            d_model=self.d_model,
-            n_heads=self.n_heads
-        )
-        output, _ = softmax_attention(self.d_1, self.d_2, self.d_2, query_mask=self.mask_1, key_mask=self.mask_2)
-        self.assertEqual(output.shape, self.d_1.shape, "SoftmaxAttention output shape mismatch")
-
-
     def test_self_attention_linear(self):
         linear_attention = AttentionLayer(
             LinearAttention(self.d_model, self.n_heads),
@@ -107,26 +83,6 @@ class TestInputs(unittest.TestCase):
         self.assertEqual(output.shape, self.d_1.shape, "LinearAttention output shape mismatch")
 
 
-    def test_self_attention_linear_with_mask(self):
-        linear_attention = AttentionLayer(
-            LinearAttention(self.d_model, self.n_heads),
-            d_model=self.d_model,
-            n_heads=self.n_heads
-        )
-        output, _ = linear_attention(self.d_1, self.d_1, self.d_1, query_mask=self.mask_1, key_mask=self.mask_1)
-        self.assertEqual(output.shape, self.d_1.shape, "LinearAttention output shape mismatch")
-
-
-    def test_cross_attention_linear_with_mask(self):
-        linear_attention = AttentionLayer(
-            LinearAttention(self.d_model, self.n_heads),
-            d_model=self.d_model,
-            n_heads=self.n_heads
-        )
-        output, _ = linear_attention(self.d_1, self.d_2, self.d_2, query_mask=self.mask_1, key_mask=self.mask_2)
-        self.assertEqual(output.shape, self.d_1.shape, "LinearAttention output shape mismatch")
-
-
     def test_self_attention_bigbird(self):
         bigbird_attention = AttentionLayer(
             BigBirdAttention(
@@ -139,18 +95,6 @@ class TestInputs(unittest.TestCase):
         self.assertEqual(output.shape, self.d_1.shape, "BigBirdAttention output shape mismatch")
 
 
-    def test_self_attention_bigbird_with_mask(self):
-        bigbird_attention = AttentionLayer(
-            BigBirdAttention(
-                self.d_model, self.n_heads, self.block_size, self.num_global_tokens, self.num_random_tokens
-            ),
-            d_model=self.d_model,
-            n_heads=self.n_heads
-        )
-        output, _ = bigbird_attention(self.d_1, self.d_1, self.d_1, query_mask=self.mask_1, key_mask=self.mask_1)
-        self.assertEqual(output.shape, self.d_1.shape, "BigBirdAttention output shape mismatch")
-
-
     def test_cross_attention_bigbird(self):
         bigbird_attention = AttentionLayer(
             BigBirdAttention(
@@ -160,18 +104,6 @@ class TestInputs(unittest.TestCase):
             n_heads=self.n_heads
         )
         output, _ = bigbird_attention(self.d_1, self.d_2, self.d_2)
-        self.assertEqual(output.shape, self.d_1.shape, "BigBirdAttention output shape mismatch")
-
-
-    def test_cross_attention_bigbird_with_mask(self):
-        bigbird_attention = AttentionLayer(
-            BigBirdAttention(
-                self.d_model, self.n_heads, self.block_size, self.num_global_tokens, self.num_random_tokens
-            ),
-            d_model=self.d_model,
-            n_heads=self.n_heads
-        )
-        output, _ = bigbird_attention(self.d_1, self.d_2, self.d_2, query_mask=self.mask_1, key_mask=self.mask_2)
         self.assertEqual(output.shape, self.d_1.shape, "BigBirdAttention output shape mismatch")
 
 

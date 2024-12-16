@@ -465,7 +465,7 @@ if __name__ == "__main__":
     bigbird_output, _ = bigbird_attention(queries, keys, values, query_mask=query_mask, key_mask=key_mask)
     runtime = time() - start
     print(f"Elapsed time for bigbird_attention with masking: {runtime:.4f} seconds")
-    
+
     assert mha_output.shape == (16,300,512)
     assert softmax_output.shape == (16,300,512)
     assert linear_output.shape == (16,300,512)

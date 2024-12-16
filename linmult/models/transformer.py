@@ -47,22 +47,43 @@ class TransformerEncoder(nn.Module):
         self.layer_norm = nn.LayerNorm(d_model)
 
 
-    def forward(self, x_in: torch.Tensor, # (B, T, d_model)
-                      x_in_k: torch.Tensor = None,
-                      x_in_v: torch.Tensor = None,
-                      query_mask: torch.Tensor | None = None,
-                      key_mask: torch.Tensor | None = None):
+    def forward(self, 
+            x_q: torch.Tensor,
+            x_k: torch.Tensor | None = None,
+            x_v: torch.Tensor | None = None,
+            query_mask: torch.Tensor | None = None,
+            key_mask: torch.Tensor | None = None
+        ) -> torch.Tensor:
+        """Transformer Encoder inference.
+
+        Self-Attention transformer encoder: x_q == x_k == x_v
+        CrossModal transformer encoder: x_q != x_k, x_q != x_v, x_k == x_v
+        
+        Note: 
+            x_k and x_v is not provided, then x_q == x_k == x_v.
+
+        Args:
+            x_q (torch.Tensor): input to the layer of shape (B, T_1, F)
+            x_k (torch.Tensor, Optional): key input to the layer of shape (B, T_2, F)
+            x_v (torch.Tensor, Optional): value input to the layer of shape (B, T_2, F)
+            query_mask (torch.Tensor, Optional): attention mask for query of shape (B, T_1)
+            key_mask (torch.Tensor, Optional): attention mask for key of shape (B, T_2)
+
+        Returns:
+            (torch.Tensor): encoded output of shape (B, T_1, F)
+        """
+
         # Scale and add positional encoding to the input
-        x = self.embed_scale * x_in # (B, T, d_model)
+        x = self.embed_scale * x_q # (B, T, d_model)
         x += self.embed_positions(x) # (B, T, d_model)
 
         # Apply dropout to the embeddings
         x = F.dropout(x, p=self.dropout_embedding, training=self.training) # (B, T, d_model)
 
-        if x_in_k is not None and x_in_v is not None:
+        if x_k is not None and x_v is not None:
             # Scale and add positional encoding to key and value inputs
-            x_k = self.embed_scale * x_in_k + self.embed_positions(x_in_k)
-            x_v = self.embed_scale * x_in_v + self.embed_positions(x_in_v)
+            x_k = self.embed_scale * x_k + self.embed_positions(x_k)
+            x_v = self.embed_scale * x_v + self.embed_positions(x_v)
 
             # Apply dropout to key and value embeddings
             x_k = F.dropout(x_k, p=self.dropout_embedding, training=self.training)
@@ -93,6 +114,7 @@ class TransformerEncoderLayer(nn.Module):
 
         if config is None: config = {}
 
+        self.name = config.get("name", "unknown")
         self.n_heads = config.get("n_heads", 8)
         self.d_model = config.get("d_model", 40)
         self.attention_type = config.get("attention_type", "linear")
@@ -110,12 +132,16 @@ class TransformerEncoderLayer(nn.Module):
         self.dropout_residual = config.get("dropout_residual", 0.1)
 
 
-    def forward(self, x_q: torch.Tensor,
-                      x_k: torch.Tensor | None = None,
-                      x_v: torch.Tensor | None = None,
-                      query_mask: torch.Tensor | None = None,
-                      key_mask: torch.Tensor | None = None):
-        """Args:
+    def forward(self, 
+            x_q: torch.Tensor,
+            x_k: torch.Tensor | None = None,
+            x_v: torch.Tensor | None = None,
+            query_mask: torch.Tensor | None = None,
+            key_mask: torch.Tensor | None = None
+        ):
+        """Transformer Encoder layer inference.
+        
+        Args:
             x_q (torch.Tensor): input to the layer of shape (B, T_1, F)
             x_k (torch.Tensor): key input to the layer of shape (B, T_2, F)
             x_v (torch.Tensor): value input to the layer of shape (B, T_2, F)
@@ -123,11 +149,11 @@ class TransformerEncoderLayer(nn.Module):
             key_mask (torch.Tensor): attention mask for key of shape (B, T_2)
 
         Returns:
-            torch.Tensor: encoded output of shape `(B, T_1, F)`
+            (torch.Tensor): encoded output of shape (B, T_1, F)
         """
         if query_mask is not None and not query_mask.shape == x_q.shape[:2] and isinstance(query_mask, torch.BoolTensor):
             raise ValueError(f"Expected query mask has shape (B, T_1) and BoolTensor type, got instead: {query_mask.shape} and {type(query_mask)}")
-        
+
         if key_mask is not None and not key_mask.shape == x_k.shape[:2] and isinstance(key_mask, torch.BoolTensor):
             raise ValueError(f"Expected key mask has (B, T_2) shape and BoolTensor type, got instead: {key_mask.shape} and {type(key_mask)}")
 
@@ -185,33 +211,47 @@ class TransformerEncoderLayer(nn.Module):
         return x_q
 
 
-class TemporalAlignerFactory:
-    """Factory class to create a multimodal signal from configuration."""
+class TemporalFactory:
+    """Factory class to create a temporal signal aligner or reducer from configuration."""
     
     @staticmethod
-    def align_time_dim(config: dict | None = None):
-        time_reduce_type = config.get("multimodal_signal_type", "padding")
-
-        if time_reduce_type == "gmp":
-            return AdaptiveMaxPooling(config)
-        elif time_reduce_type == "gap":
-            return AdaptiveAvgPooling(config)
+    def time_dim_aligner(method: str = "aap"):
+        if method == "aap":
+            return AdaptiveAvgPooling()
+        elif method == "amp":
+            return AdaptiveMaxPooling()
         else: # padding
-            return TemporalPadding(config)
+            return TemporalPadding()
+
+    @staticmethod
+    def time_dim_reducer(config: dict | None = None):
+        method = config.get("time_dim_reducer", "attentionpool")
+
+        if method == "attentionpool":
+            input_feature_dim = config.get("input_feature_dim")
+
+            if isinstance(input_feature_dim, int):
+                d_model = config.get("d_model", 40)
+            else:
+                d_model = (len(input_feature_dim)-1) * config.get("d_model", 40)
+
+            return AttentionPooling(d_model)
+        elif method == "gmp":
+            return GlobalMaxPooling()
+        elif method == "gap":
+            return GlobalAvgPooling()
+        else: # last
+            return LastTimestamp()
 
 
 class TemporalPadding(nn.Module):
 
-    def __init__(self, config: dict):
-        super().__init__()
-        self.time_dim: int = config.get('multimodal_signal_time_dim')
-
-    def forward(self, x: torch.Tensor, mask: torch.BoolTensor = None):
-        """
-        Adjusts the time dimension of the input tensor by truncation or padding.
+    def forward(self, x: torch.Tensor, time_dim: int, mask: torch.BoolTensor = None):
+        """Adjusts the time dimension of the input tensor by truncation or padding.
 
         Args:
             x (torch.Tensor): Input tensor of shape (B, T, F).
+            time_dim (int): padding is applied until time_dim size is reached.
             mask (torch.BoolTensor, optional): Mask tensor of shape (B, T). True indicates valid tokens.
 
         Returns:
@@ -219,17 +259,17 @@ class TemporalPadding(nn.Module):
         """
         current_time_dim = x.size(1)  # Current time dimension (T)
 
-        if current_time_dim > self.time_dim:
+        if current_time_dim > time_dim:
             # Truncate if the current time dimension is larger
-            x_new = x[:, :self.time_dim, :]
+            x_new = x[:, :time_dim, :]
             if mask is not None:
-                mask_new = mask[:, :self.time_dim]
+                mask_new = mask[:, :time_dim]
             else:
-                mask_new = torch.ones((x.size(0), self.time_dim), dtype=torch.bool, device=x.device)
+                mask_new = torch.ones((x.size(0), time_dim), dtype=torch.bool, device=x.device)
 
-        elif current_time_dim < self.time_dim:
+        elif current_time_dim < time_dim:
             # Pad if the current time dimension is smaller
-            pad_size = self.time_dim - current_time_dim
+            pad_size = time_dim - current_time_dim
             x_new = F.pad(x, (0, 0, 0, pad_size))  # Pad along the time dimension (T)
 
             if mask is not None:
@@ -248,11 +288,7 @@ class TemporalPadding(nn.Module):
 
 class AdaptiveMaxPooling(nn.Module):
 
-    def __init__(self, config: dict):
-        super().__init__()
-        self.time_dim: int = config.get('multimodal_signal_time_dim')
-    
-    def forward(self, x: torch.Tensor, mask: torch.BoolTensor = None):
+    def forward(self, x: torch.Tensor, time_dim: int, mask: torch.BoolTensor = None):
         # x: (B, T, F)
         if mask is not None:
             # Expand the mask to match feature dimensions
@@ -262,7 +298,7 @@ class AdaptiveMaxPooling(nn.Module):
             x = x.masked_fill(~expanded_mask, float('-inf'))
 
         # Apply adaptive max pooling
-        x_new = F.adaptive_max_pool1d(x.transpose(1, 2), self.time_dim).transpose(1, 2)
+        x_new = F.adaptive_max_pool1d(x.transpose(1, 2), time_dim).transpose(1, 2)
 
         if mask is not None:
             mask_new = (x_new != float('-inf')).any(dim=-1)  # Shape: (B, T_new)
@@ -276,14 +312,11 @@ class AdaptiveMaxPooling(nn.Module):
 
 class AdaptiveAvgPooling(nn.Module):
 
-    def __init__(self, config: dict):
-        super().__init__()
-        self.time_dim: int = config.get('multimodal_signal_time_dim')
-
-    def forward(self, x: torch.Tensor, mask: torch.BoolTensor = None):
+    def forward(self, x: torch.Tensor, time_dim: int, mask: torch.BoolTensor = None):
         """
         Args:
             x (torch.Tensor): Input tensor of shape (B, T, F).
+            time_dim (int): padding is applied until time_dim size is reached.
             mask (torch.BoolTensor, optional): Mask tensor of shape (B, T). True indicates valid tokens.
 
         Returns:
@@ -297,38 +330,22 @@ class AdaptiveAvgPooling(nn.Module):
             x = x.masked_fill(~expanded_mask, 0.0)
 
             # Generate new mask to track valid segments
-            mask_new = F.adaptive_avg_pool1d(mask.float().unsqueeze(1), self.time_dim).squeeze(1) > 1e-8  # Shape: (B, T_new)
-        else:
-            mask_new = torch.ones(x.size(0), self.time_dim, dtype=torch.bool, device=x.device)  # Full valid mask
+            pooled_mask = F.adaptive_avg_pool1d(mask.float().unsqueeze(1), time_dim).squeeze(1)  # Shape: (B, T_new)
+            mask_new = pooled_mask > 1e-8  # Binarize the pooled mask
 
-        # Apply adaptive average pooling
-        x_new = F.adaptive_avg_pool1d(x.transpose(1, 2), self.time_dim).transpose(1, 2)  # Shape: (B, T_new, F)
+            # Apply adaptive average pooling to the tensor
+            x_pooled = F.adaptive_avg_pool1d(x.transpose(1, 2), time_dim).transpose(1, 2)  # Shape: (B, T_new, F)
+
+            # Normalize the pooled tensor to account for masked regions
+            # Avoid division by zero by adding a small epsilon
+            epsilon = 1e-8
+            x_new = x_pooled / (pooled_mask.unsqueeze(-1) + epsilon)  # Shape: (B, T_new, F)
+        else:
+            # If no mask is provided, perform standard adaptive average pooling
+            x_new = F.adaptive_avg_pool1d(x.transpose(1, 2), time_dim).transpose(1, 2)  # Shape: (B, T_new, F)
+            mask_new = torch.ones(x.size(0), time_dim, dtype=torch.bool, device=x.device)  # Full valid mask
 
         return x_new, mask_new
-
-
-class TimeReduceFactory:
-    """Factory class to create modules for reducing the time dimension from configuration."""
-    
-    @staticmethod
-    def create_time_reduce_layer(config: dict | None = None):
-        time_reduce_type = config.get("time_reduce_type", "attentionpool1d")
-
-        if time_reduce_type == "attentionpool":
-            input_channels = config.get("input_modality_channels")
-
-            if isinstance(input_channels, int):
-                d_model = config.get("d_model", 40)
-            else:
-                d_model = (len(input_channels)-1) * config.get("d_model", 40)
-            
-            return AttentionPooling(d_model)
-        elif time_reduce_type == "gmp":
-            return GlobalMaxPooling()
-        elif time_reduce_type == "gap":
-            return GlobalAvgPooling()
-        else: # last
-            return LastTimestamp()
 
 
 class LastTimestamp(nn.Module):
@@ -376,14 +393,6 @@ class GlobalMaxPooling(nn.Module):
         if mask is not None:
             mask = mask.unsqueeze(-1)  # Shape: (B, T, 1)
             x = x.masked_fill(~mask, float('-inf'))  # Ignore padding with -inf
-        return x.max(dim=1)[0]  # Max pooling over the time dimension: (B, d_model)
-
-
-class MaskedGlobalMaxPooling(nn.Module):
-    def forward(self, x: torch.Tensor, mask: torch.BoolTensor) -> torch.Tensor:
-        # x shape: (B, T, d_model), mask shape: (B, T)
-        mask = mask.unsqueeze(-1)  # Shape: (B, T, 1)
-        x = x.masked_fill(~mask, float('-inf'))  # Ignore padding with -inf
         return x.max(dim=1)[0]  # Max pooling over the time dimension: (B, d_model)
 
 

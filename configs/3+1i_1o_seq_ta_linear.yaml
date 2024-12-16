@@ -1,0 +1,42 @@
+# input-output params
+input_feature_dim:
+  - 25
+  - 41
+  - 768
+
+output_dim:
+  - 5
+
+# input handlers
+special_handling:
+  wavlm_baseplus:
+    type: weighted_sum
+    start_layer: 6
+    end_layer: 12
+
+# CM and SA transformer params
+d_model: 40
+n_heads: 8
+n_layers: 6
+attention_type: linear # bigbird, softmax, mha
+
+## bigbird attention params - ignored otherwise
+# block_size: 64
+# num_global_tokens: 16
+# num_random_tokens: 10
+# dropout_attention: 0.
+
+dropout_embedding: 0
+dropout_relu: 0.1
+dropout_residual: 0.1
+dropout_output: 0
+
+# LinMulT architecture params
+n_layers_sa: 3
+
+time_dim_aligner: aap
+aligned_time_dim: 300
+
+multimodal_signal: True
+n_layers_mms: 3
+tam_fusion: True
