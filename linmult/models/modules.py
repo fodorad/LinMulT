@@ -40,7 +40,7 @@ class TAM(nn.Module):
         super().__init__()
 
         if config['time_dim_aligner'] not in {None, 'aap', 'amp', 'padding'}:
-            raise Exception(f'Invalid time_dim_aligner: {config['time_dim_aligner']}')
+            raise Exception(f'Invalid time_dim_aligner: {config["time_dim_aligner"]}')
         
         self.aligned_time_dim = config['aligned_time_dim']
         self.time_dim_aligner = TemporalFactory.time_dim_aligner(config['time_dim_aligner']) # TA

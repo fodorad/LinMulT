@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "linmult"
-version = "1.5.0"
+version = "1.5.1"
 description = "General-purpose Multimodal Transformer with Linear Complexity Attention Mechanism."
 keywords = ["multimodal", "transformer", "linear-complexity attention"]
 authors = [
   { name = "fodorad", email = "foauaai@inf.elte.hu" },
 ]
 readme = {"file" = "README.md", "content-type" = "text/markdown"}
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "MIT"
 dynamic = ["dependencies"]
 classifiers = [
