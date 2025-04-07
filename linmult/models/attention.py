@@ -131,10 +131,10 @@ class AttentionLayer(torch.nn.Module):
         else:
             # Create combined attention mask
             if query_mask is None:
-                query_mask = torch.ones(size=queries.shape[:2]).bool() # all values are used in the calculations
+                query_mask = torch.ones(size=queries.shape[:2], device=queries.device).bool() # all values are used in the calculations
             
             if key_mask is None:
-                key_mask = torch.ones(size=keys.shape[:2]).bool() # all values are used in the calculations
+                key_mask = torch.ones(size=keys.shape[:2], device=keys.device).bool() # all values are used in the calculations
 
             combined_mask = query_mask.unsqueeze(-1) * key_mask.unsqueeze(1)
             attn_mask = (~combined_mask).float() * -1e9 # Convert to float and apply large negative value
@@ -335,8 +335,9 @@ class LinearAttention(torch.nn.Module):
 
         # Finally compute and return the new values
         V = torch.einsum("nlhd,nhmd,nlh->nlhm", Q, KV, Z)
+        V = V.contiguous()
 
-        return V.contiguous(), None
+        return V, None
 
 
 class FeatureMap(torch.nn.Module):

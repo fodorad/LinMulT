@@ -20,7 +20,7 @@ class LinT(nn.Module):
         self.dropout_embedding = config.get("dropout_embedding", 0.1)
         self.dropout_output = config.get("dropout_output", 0.)
         self.module_time_dim_reducer = config.get("time_dim_reducer", None)
-        self.module_ffn_fusion = config.get("module_ffn_fusion", None)
+        self.module_ffn_fusion = config.get("ffn_fusion", None)
         self.special_handling = config.get("special_handling", {})
 
         # 1. Temporal convolutional layers
@@ -31,6 +31,16 @@ class LinT(nn.Module):
             padding=0,
             bias=False
         ) # (B, C, T) -> (B, d_model, T)
+        
+        self.special_modules = {}
+        for name, params in self.special_handling.items():
+            if params['type'] == "weighted_sum":
+                start_layer = params['start_layer']
+                end_layer = params['end_layer']
+                n_layers = end_layer - start_layer
+                self.special_modules[name] = nn.Parameter(
+                    torch.ones(n_layers) / n_layers, requires_grad=True
+                )
 
         # 2. Self-Attention Transformer
         self.self_attention_transformer = TransformerEncoder(config)
@@ -58,12 +68,21 @@ class LinT(nn.Module):
                 x = x[0]
             else:
                 raise Exception(f'A single tensor is expected got instead {len(x)}.')
-            
+
+        if isinstance(name, list):
+            if len(name) == 1:
+                name = name[0]
+            else:
+                raise Exception(f'A single name is expected got instead {len(name)}.')
+
         if isinstance(mask, list):
             if len(mask) == 1:
                 mask = mask[0]
             else:
                 raise Exception(f'A single mask is expected got instead {len(mask)}.')
+
+        if mask is not None and not mask.any():
+            mask = None
 
         x = self._apply_projection(x, name=name)
 
@@ -72,7 +91,7 @@ class LinT(nn.Module):
         if self.module_time_dim_reducer:
             x = self.trm(x, mask) # (B, T, d_model) -> (B, d_model)
             mask = None
-        
+
         if self.module_ffn_fusion:
             x = self.projection_2(
                 F.dropout(
@@ -81,9 +100,6 @@ class LinT(nn.Module):
                     training=self.training
                 )
             ) + x # ffn + residual
-
-        if mask is not None:
-            x = x * mask.unsqueeze(-1) # Mask out padding tokens after residual connection
 
         outputs = self._apply_output_heads(x, mask) # (B, output_dim) or (B, T, output_dim)
         return outputs

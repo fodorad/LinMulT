@@ -14,8 +14,7 @@ class TransformerEncoder(nn.Module):
             d_model (int, optional): input embedding dimension. Defaults to 40.
             n_heads (int, optional): number of heads. Defaults to 8.
             n_layers (int, optional): number of layers. Defaults to 6.
-            dropout_embedding (float, optional): dropout applied on the input tensors. Defaults to 0.1.
-            dropout_attention (float, optional): dropout applied on the attention weights. Defaults to 0.
+            dropout_qkv (float, optional): dropout applied on the input tensors. Defaults to 0.
             dropout_relu (float, optional): dropout applied on the first layer of the residual block. Defaults to 0.1.
             dropout_residual (float, optional): dropout applied on the residual block. Defaults to 0.1.
             attention_type (str): attention type. Currently the following linear-complexity mechanism are supported {"bigbird", "linear"}. Otherwise softmax attention is used.
@@ -35,7 +34,7 @@ class TransformerEncoder(nn.Module):
         self.embed_positions = PositionalEncoding()
 
         # Dropout for input embeddings
-        self.dropout_embedding = config.get("dropout_embedding", 0.1)
+        self.dropout_qkv = config.get("dropout_qkv", 0.)
 
         # Stack of encoder layers
         self.layers = nn.ModuleList([
@@ -78,7 +77,7 @@ class TransformerEncoder(nn.Module):
         x += self.embed_positions(x) # (B, T, d_model)
 
         # Apply dropout to the embeddings
-        x = F.dropout(x, p=self.dropout_embedding, training=self.training) # (B, T, d_model)
+        x = F.dropout(x, p=self.dropout_qkv, training=self.training) # (B, T, d_model)
 
         if x_k is not None and x_v is not None:
             # Scale and add positional encoding to key and value inputs
@@ -86,8 +85,8 @@ class TransformerEncoder(nn.Module):
             x_v = self.embed_scale * x_v + self.embed_positions(x_v)
 
             # Apply dropout to key and value embeddings
-            x_k = F.dropout(x_k, p=self.dropout_embedding, training=self.training)
-            x_v = F.dropout(x_v, p=self.dropout_embedding, training=self.training)
+            x_k = F.dropout(x_k, p=self.dropout_qkv, training=self.training)
+            x_v = F.dropout(x_v, p=self.dropout_qkv, training=self.training)
 
             # Pass through the stack of encoder layers
             for layer in self.layers:
@@ -100,9 +99,6 @@ class TransformerEncoder(nn.Module):
         # Final layer normalization
         x = self.layer_norm(x)
 
-        if query_mask is not None:
-            x = x * query_mask.unsqueeze(-1) # Mask out padding tokens after layer normalization
-        
         return x
 
 
@@ -160,25 +156,22 @@ class TransformerEncoderLayer(nn.Module):
         residual = x_q
         x_q = self.layer_norms[0](x_q)
 
-        if query_mask is not None:
-            x_q = x_q * query_mask.unsqueeze(-1) # Mask out padding tokens after layer normalization
-
         # cross-modal attention
         if x_k is not None and x_v is not None:
             x_k = self.layer_norms[0](x_k) # (B, T_2, F)
             x_v = self.layer_norms[0](x_v) # (B, T_2, F)
 
-            if key_mask is not None:
-                if ~key_mask.all(): # if all keys are masked, then the cm transformer should result in zeros
-                    return torch.zeros_like(x_q, device=x_q.device)
-
-                x_k = x_k * key_mask.unsqueeze(-1) # Mask out padding tokens after layer normalization
-                x_v = x_v * key_mask.unsqueeze(-1) # Mask out padding tokens after layer normalization
-
             if self.attention_type == "mha":
                 x_q, _ = self.attention(x_q, x_k, x_v)
             else:
                 x_q, _ = self.attention(x_q, x_k, x_v, query_mask=query_mask, key_mask=key_mask) # returns (B, T_1, F) and (B, T_1, T_2)
+
+            if key_mask is not None:
+                fully_masked_keys = ~key_mask.any(dim=1)  # Shape: (B,)
+                if fully_masked_keys.any():
+                    # If all keys are masked for any sample, return zeros for those samples
+                    zero_output = torch.zeros_like(x_q, device=x_q.device)
+                    x_q = torch.where(fully_masked_keys.unsqueeze(1).unsqueeze(2), zero_output, x_q)
 
         else: # self-attention
 
@@ -187,26 +180,25 @@ class TransformerEncoderLayer(nn.Module):
             else:
                 x_q, _ = self.attention(x_q, x_q, x_q, query_mask=query_mask, key_mask=query_mask) # returns (B, T_1, F) and (B, T_1, T_1)
 
+        if query_mask is not None:
+            fully_masked_queries = ~query_mask.any(dim=1)  # Shape: (B,)
+            if fully_masked_queries.any():
+                # Create a tensor of zeros for fully masked samples
+                zero_output = torch.zeros_like(x_q, device=x_q.device)
+                # Replace the output for fully masked samples with zeros
+                x_q = torch.where(fully_masked_queries.unsqueeze(1).unsqueeze(2), zero_output, x_q)
+
         x_q = F.dropout(x_q, p=self.dropout_residual, training=self.training)
         x_q = residual + x_q
 
-        if query_mask is not None:
-            x_q = x_q * query_mask.unsqueeze(-1) # Mask out padding tokens after residual connection
-
         residual = x_q
         x_q = self.layer_norms[1](x_q)
-
-        if query_mask is not None:
-            x_q = x_q * query_mask.unsqueeze(-1) # Mask out padding tokens after layer normalization
 
         x_q = F.relu(self.fc1(x_q))
         x_q = F.dropout(x_q, p=self.dropout_relu, training=self.training)
         x_q = self.fc2(x_q)
         x_q = F.dropout(x_q, p=self.dropout_residual, training=self.training)
         x_q = residual + x_q
-
-        if query_mask is not None:
-            x_q = x_q * query_mask.unsqueeze(-1) # Mask out padding tokens after residual connection
 
         return x_q
 
@@ -233,7 +225,8 @@ class TemporalFactory:
             if isinstance(input_feature_dim, int):
                 d_model = config.get("d_model", 40)
             else:
-                d_model = (len(input_feature_dim)-1) * config.get("d_model", 40)
+                multiplier = len(input_feature_dim) if config.get("multimodal_signal", False) else (len(input_feature_dim)-1)
+                d_model = multiplier * config.get("d_model", 40) 
 
             return AttentionPooling(d_model)
         elif method == "gmp":

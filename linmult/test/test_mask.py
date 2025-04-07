@@ -41,9 +41,6 @@ class TestInputs(unittest.TestCase):
         encoder = TransformerEncoder({'d_model': self.d_model})
         output = encoder(self.d_1, query_mask=self.mask_1)
         self.assertEqual(output.shape, (self.batch_size, self.time_dim_1, self.d_model))
-        
-        masked_positions = ~self.mask_1.unsqueeze(-1).expand_as(output) # Expand mask to match (B, T_1, d_model)
-        self.assertTrue(torch.all(output[masked_positions].abs() == 0.), "Masked positions are not zero.")
 
 
     def test_cross_attention_transformer_encoder_with_mask(self):
@@ -51,29 +48,23 @@ class TestInputs(unittest.TestCase):
         output = encoder(self.d_1, self.d_2, self.d_2, query_mask=self.mask_1, key_mask=self.mask_2)
         self.assertEqual(output.shape, (self.batch_size, self.time_dim_1, self.d_model))
 
-        masked_positions = ~self.mask_1.unsqueeze(-1).expand_as(output) # Expand mask to match (B, T_1, d_model)
-        self.assertTrue(torch.all(output[masked_positions].abs() == 0.), "Masked positions are not zero.")
-
 
     def test_self_attention_transformer_encoder_with_full_query_mask(self):
         encoder = TransformerEncoder({'d_model': self.d_model})
         output = encoder(self.d_3, query_mask=self.mask_3f)
         self.assertEqual(output.shape, (self.batch_size, self.time_dim_3, self.d_model))
-        self.assertTrue(torch.all(output == 0.), "Masked positions are not zero.")
 
 
     def test_cross_attention_transformer_encoder_with_full_query_mask(self):
         encoder = TransformerEncoder({'d_model': self.d_model})
         output = encoder(self.d_3, self.d_2, self.d_2, query_mask=self.mask_3f, key_mask=self.mask_2)
         self.assertEqual(output.shape, (self.batch_size, self.time_dim_3, self.d_model))
-        self.assertTrue(torch.all(output == 0.), "Masked positions are not zero.")
 
 
     def test_cross_attention_transformer_encoder_with_full_key_mask(self):
         encoder = TransformerEncoder({'d_model': self.d_model})
         output = encoder(self.d_2, self.d_3, self.d_3, query_mask=self.mask_2, key_mask=self.mask_3f)
         self.assertEqual(output.shape, (self.batch_size, self.time_dim_2, self.d_model))
-        self.assertTrue(torch.all(output == 0.), "Masked positions are not zero.")
 
 
     def test_self_attention_softmax_with_mask(self):
@@ -184,14 +175,9 @@ class TestInputs(unittest.TestCase):
             }
         )
         output_seq = model([self.x_2, self.x_2, self.x_3], masks=[self.mask_2, self.mask_2, self.mask_3f])
-        output_cls = apply_logit_aggregation(x=output_seq[0], method='meanpooling')
+        output_cls = apply_logit_aggregation(x=output_seq[0], mask=self.mask_2, method='meanpooling')
         self.assertEqual(output_seq[0].shape, (self.batch_size, self.time_dim_2, self.output_dim_1))
         self.assertEqual(output_cls.shape, (self.batch_size, self.output_dim_1))
-
-        # Verify that masked positions have zeros
-        mask_2_expanded = ~self.mask_2.unsqueeze(-1).expand(-1, -1, self.output_dim_1) # Expand to match output shape
-        masked_values = output_seq[0][mask_2_expanded]
-        self.assertTrue(torch.all(masked_values == 0), "Masked positions are not zero in output_seq.")
 
 
 if __name__ == "__main__":

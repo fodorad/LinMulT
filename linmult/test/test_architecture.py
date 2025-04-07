@@ -126,6 +126,21 @@ class TestArchitecture(unittest.TestCase):
         self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
 
 
+    def test_module_mms_time_reduce_ap(self):
+        model = LinMulT(
+            {
+                'input_feature_dim': [self.feature_dim_1, self.feature_dim_2],
+                'output_dim': [self.output_dim_1],
+                'multimodal_signal': True,
+                'time_dim_aligner': 'aap',
+                'aligned_time_dim': 450,
+                'time_dim_reducer': 'attentionpool'
+            }
+        )
+        output = model([self.x_1, self.x_2])
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
+
     def test_lint(self):
         model = LinT(
             {

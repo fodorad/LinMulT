@@ -20,13 +20,13 @@ class LinMulT(nn.Module):
         self.output_dim = config.get("output_dim")
         self.n_sequences = len(self.input_feature_dim)
         self.d_model = config.get("d_model", 40)
-        self.dropout_embedding = config.get("dropout_embedding", 0.)
+        self.dropout_input = config.get("dropout_input", 0.)
         self.dropout_output = config.get("dropout_output", 0.)
         self.module_time_dim_reducer = config.get("time_dim_reducer", None)
         self.module_multimodal_signal = config.get("multimodal_signal", None)
         self.module_tam_fusion = config.get("tam_fusion", None)
         self.module_self_attention_fusion = config.get("module_self_attention_fusion", None)
-        self.module_ffn_fusion = config.get("module_ffn_fusion", None)
+        self.module_ffn_fusion = config.get("ffn_fusion", None)
         self.special_handling = config.get("special_handling", {})
 
         # Initialize stages
@@ -53,7 +53,11 @@ class LinMulT(nn.Module):
         Returns:
             (list[torch.Tensor]): tensor of shape (B, F) and/or (B, T, F) based on output head definition
         """
-        if masks is None: masks = [None] * self.n_sequences
+        if masks is None:
+            masks = [None] * self.n_sequences
+        else:
+            masks = [mask if mask is not None and mask.any() else None for mask in masks] # full masks are changed to None
+
         logging.debug(f'input sizes: {[tuple(x.shape) for x in inputs]}')
         projected_inputs = self._apply_projections(inputs, names)
         logging.debug(f'projected input sizes: {[tuple(x.shape) for x in projected_inputs]}')
@@ -202,7 +206,7 @@ class LinMulT(nn.Module):
             projected_x = projector(
                 F.dropout(
                     x.transpose(1, 2),  # (B, T, F) -> (B, F, T)
-                    p=self.dropout_embedding,
+                    p=self.dropout_input,
                     training=self.training
                 )
             ).transpose(1, 2)  # (B, F, T) -> (B, T, d_model)
@@ -281,9 +285,6 @@ class LinMulT(nn.Module):
                 )
             ) + x # ffn + residual
 
-        if mask is not None:
-            x = x * mask.unsqueeze(-1) # Mask out padding tokens after residual connection
-
         return x, mask
 
 
@@ -308,4 +309,7 @@ if __name__ == "__main__":
     x_1 = torch.rand((8, 300, 25))
     x_2 = torch.rand((8, 300, 41))
     x_3 = torch.rand((8, 500, 768))
-    output = model([x_1, x_2, x_3])
+    m_1 = torch.ones((8, 300))
+    m_2 = torch.ones((8, 300))
+    m_3 = torch.zeros((8, 500))
+    output = model([x_1, x_2, x_3], [m_1, m_2, m_3])
