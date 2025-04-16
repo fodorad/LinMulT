@@ -32,7 +32,7 @@ class TRM(nn.Module):
 
 class TAM(nn.Module):
     """Time Align Module
-    
+
     Time dimensions of multiple tensors are aligned, transforms tensors with shape (B, T, F) to (B, aligned_time_dim, F)
     """
 
@@ -61,3 +61,35 @@ class TAM(nn.Module):
         x = self.projector(mm_x.transpose(1, 2)).transpose(1, 2) # (B, T, N*F) -> (B, T, F)
         x = x * mask.unsqueeze(-1) # (B, T, F) * (B, T, 1)
         return x, mask # (B, T, F) and (B, T)
+
+
+class BN(nn.Module):
+    """Handles Batch Normalization for both sequence (B,T,F) and vector (B,F) inputs"""
+
+    def __init__(self, feature_dim: int, time_aware: bool):
+        super().__init__()
+        self.time_aware = time_aware
+        self.bn = nn.BatchNorm1d(feature_dim)
+
+    def forward(self, x):
+        if self.time_aware and x.ndim == 3: # (B,T,F)
+            x = x.permute(0,2,1) # (B,F,T)
+            x = self.bn(x)
+            return x.permute(0,2,1) # (B,T,F)
+        return self.bn(x) # (B,F)
+
+
+class IN(nn.Module):
+    """Handles Instance Normalization for both sequence (B,T,F) and vector (B,F) inputs"""
+    def __init__(self, feature_dim: int, time_aware: bool):
+        super().__init__()
+        self.time_aware = time_aware
+        self.in_norm = nn.InstanceNorm1d(feature_dim, affine=True)
+
+    def forward(self, x):
+        if self.time_aware and x.ndim == 3: # (B,T,F)
+            x = x.permute(0,2,1) # (B,F,T)
+            x = self.in_norm(x)
+            return x.permute(0,2,1) # (B,T,F)
+        else: # (B,F)
+            return self.in_norm(x.unsqueeze(-1)).squeeze()

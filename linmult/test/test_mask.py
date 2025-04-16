@@ -135,7 +135,7 @@ class TestInputs(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'time_dim_reducer': 'gap'
             }
         )
@@ -147,7 +147,7 @@ class TestInputs(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2, self.feature_dim_3],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'time_dim_reducer': 'gap'
             }
         )
@@ -159,7 +159,7 @@ class TestInputs(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2, self.feature_dim_3],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'time_dim_reducer': 'gap'
             }
         )
@@ -171,7 +171,7 @@ class TestInputs(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_2, self.feature_dim_2, self.feature_dim_3],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}]
             }
         )
         output_seq = model([self.x_2, self.x_2, self.x_3], masks=[self.mask_2, self.mask_2, self.mask_3f])

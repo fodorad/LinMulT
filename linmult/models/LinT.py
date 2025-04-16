@@ -1,8 +1,10 @@
+import logging
 import torch
 from torch import nn
 import torch.nn.functional as F
 from linmult.models.transformer import TransformerEncoder
 from linmult.models.modules import TRM
+from linmult.models.heads import HeadFactory
 from linmult.models.utils import load_config
 
 
@@ -15,13 +17,13 @@ class LinT(nn.Module):
             config = load_config(config)
 
         self.input_dim = config.get("input_feature_dim")
-        self.output_dim = config.get("output_dim")
         self.d_model = config.get("d_model", 40)
         self.dropout_embedding = config.get("dropout_embedding", 0.1)
         self.dropout_output = config.get("dropout_output", 0.)
         self.module_time_dim_reducer = config.get("time_dim_reducer", None)
         self.module_ffn_fusion = config.get("ffn_fusion", None)
         self.special_handling = config.get("special_handling", {})
+        self.head_configs = config.get("heads", [])
 
         # 1. Temporal convolutional layers
         self.projector = nn.Conv1d(
@@ -53,10 +55,15 @@ class LinT(nn.Module):
             self.projection_1 = nn.Linear(self.d_model, self.d_model)
             self.projection_2 = nn.Linear(self.d_model, self.d_model)
 
-        # 3. Output layer
+        # 3. Output heads
         self.output_heads = nn.ModuleList([
-            nn.Linear(self.d_model, output_dim)
-            for output_dim in self.output_dim
+            HeadFactory.create_head(
+                name=head_cfg['type'],
+                input_dim=self.d_model,
+                output_dim=head_cfg['output_dim'],
+                config=head_cfg
+            )
+            for head_cfg in self.head_configs
         ])
 
 
@@ -128,9 +135,24 @@ class LinT(nn.Module):
 
     def _apply_output_heads(self, x: torch.Tensor, mask: torch.BoolTensor = None) -> list[torch.Tensor]:
         """Apply output heads"""
-        if x.ndim == 3 and mask is not None: # (B, F)
-            # apply the mask to filter out invalid timesteps in the output
-            expanded_masks = [mask.unsqueeze(-1).expand(-1, -1, output_dim) for output_dim in self.output_dim]
-            return [output_head(x) * mask for output_head, mask in zip(self.output_heads, expanded_masks)]
-        
-        return [output_head(x) for output_head in self.output_heads]
+        return [head(x, mask=mask) for head in self.output_heads]
+
+
+if __name__ == "__main__":
+
+    logging.basicConfig(level=logging.DEBUG,
+                        format="%(asctime)s %(levelname)s %(message)s",
+                        datefmt="%Y-%m-%d %H:%M:%S")
+
+    config = load_config('configs/LinT.yaml')
+    model = LinT(config)
+    x = torch.rand((2, 300, 41)) # (B, T, F)
+    m1 = torch.ones(300, dtype=torch.bool)
+    m2 = torch.cat([
+        torch.ones(150, dtype=torch.bool),
+        torch.zeros(150, dtype=torch.bool)
+    ])
+    m = torch.stack([m1, m2], dim=0) # (B, T)
+    outputs = model(x, m)
+    for i, out in enumerate(outputs):
+        print(f"Head {i+1} output shape: {out.shape}")

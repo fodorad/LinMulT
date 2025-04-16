@@ -27,7 +27,7 @@ class TestArchitecture(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_2, self.feature_dim_3],
-                'output_dim': [self.output_dim_1]
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}]
             }
         )
         output_seq = model([self.x_2, self.x_3])
@@ -41,7 +41,7 @@ class TestArchitecture(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_2, self.feature_dim_3],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'attention_type': 'linear'
             }
         )
@@ -52,7 +52,7 @@ class TestArchitecture(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_2, self.feature_dim_3],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'attention_type': 'bigbird'
             }
         )
@@ -63,7 +63,7 @@ class TestArchitecture(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_2, self.feature_dim_3],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'attention_type': 'mha'
             }
         )
@@ -74,7 +74,7 @@ class TestArchitecture(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'tam_fusion': True,
                 'time_dim_aligner': 'aap',
                 'aligned_time_dim': 450,
@@ -88,7 +88,7 @@ class TestArchitecture(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'time_dim_reducer': 'gap'
             }
         )
@@ -100,7 +100,7 @@ class TestArchitecture(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'multimodal_signal': True,
                 'time_dim_aligner': 'amp',
                 'tam_fusion': True,
@@ -115,7 +115,7 @@ class TestArchitecture(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2, self.feature_dim_3],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'multimodal_signal': True,
                 'time_dim_aligner': 'amp',
                 'aligned_time_dim': 450,
@@ -130,7 +130,7 @@ class TestArchitecture(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'multimodal_signal': True,
                 'time_dim_aligner': 'aap',
                 'aligned_time_dim': 450,
@@ -145,7 +145,7 @@ class TestArchitecture(unittest.TestCase):
         model = LinT(
             {
                 'input_feature_dim': self.feature_dim_1,
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'time_dim_reducer': 'attentionpool',
             }
         )

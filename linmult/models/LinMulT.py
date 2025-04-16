@@ -4,6 +4,7 @@ from torch import nn
 import torch.nn.functional as F
 from linmult.models.transformer import TransformerEncoder
 from linmult.models.modules import TAM, TRM
+from linmult.models.heads import HeadFactory
 from linmult.models.utils import load_config
 
 
@@ -17,7 +18,7 @@ class LinMulT(nn.Module):
             config = load_config(config)
 
         self.input_feature_dim = config.get("input_feature_dim")
-        self.output_dim = config.get("output_dim")
+        self.special_handling = config.get("special_handling", {})
         self.n_sequences = len(self.input_feature_dim)
         self.d_model = config.get("d_model", 40)
         self.dropout_input = config.get("dropout_input", 0.)
@@ -27,7 +28,7 @@ class LinMulT(nn.Module):
         self.module_tam_fusion = config.get("tam_fusion", None)
         self.module_self_attention_fusion = config.get("module_self_attention_fusion", None)
         self.module_ffn_fusion = config.get("ffn_fusion", None)
-        self.special_handling = config.get("special_handling", {})
+        self.head_configs = config.get("heads", [])
 
         # Initialize stages
         self._init_projections()
@@ -170,10 +171,16 @@ class LinMulT(nn.Module):
         fusion_dim_multiplier = 1 / self.n_sequences if self.module_tam_fusion else 1
         combined_dim = max(int(n_cmt * n_sat * fusion_dim_multiplier), 2) * self.d_model
 
-        self.output_heads = nn.ModuleList([
-            nn.Linear(combined_dim, output_dim)
-            for output_dim in self.output_dim
-        ]) # list of (B, T, output_dim) or (B, output_dim)
+        self.output_heads = nn.ModuleList()
+
+        for head_cfg in self.head_configs:
+            head = HeadFactory.create_head(
+                name=head_cfg['type'],
+                input_dim=combined_dim,
+                output_dim=head_cfg['output_dim'],
+                config=head_cfg
+            )
+            self.output_heads.append(head)
 
 
     def _apply_projections(self,
@@ -290,11 +297,7 @@ class LinMulT(nn.Module):
 
     def _apply_output_heads(self, x: torch.Tensor, mask: torch.BoolTensor | None) -> list[torch.Tensor]:
         """Apply output heads"""
-        if x.ndim == 3 and mask is not None: # (B, F)
-            output_masks = [mask.unsqueeze(-1).expand(-1, -1, output_dim) for output_dim in self.output_dim] # (B, T) -> (B, T, 1) -> (B, T, O)
-            return [output_head(x) * mask for output_head, mask in zip(self.output_heads, output_masks)]
-
-        return [output_head(x) for output_head in self.output_heads]
+        return [head(x, mask=mask) for head in self.output_heads]
 
 
 if __name__ == "__main__":
@@ -303,13 +306,15 @@ if __name__ == "__main__":
                         format="%(asctime)s %(levelname)s %(message)s",
                         datefmt="%Y-%m-%d %H:%M:%S")
 
-    config = load_config('configs/3+1i_1o_seq_ta_linear.yaml')
+    config = load_config('configs/LinMulT.yaml')
     model = LinMulT(config)
 
     x_1 = torch.rand((8, 300, 25))
     x_2 = torch.rand((8, 300, 41))
     x_3 = torch.rand((8, 500, 768))
-    m_1 = torch.ones((8, 300))
-    m_2 = torch.ones((8, 300))
-    m_3 = torch.zeros((8, 500))
-    output = model([x_1, x_2, x_3], [m_1, m_2, m_3])
+    m_1 = torch.ones((8, 300), dtype=bool)
+    m_2 = torch.ones((8, 300), dtype=bool)
+    m_3 = torch.zeros((8, 500), dtype=bool)
+    outputs = model([x_1, x_2, x_3], [m_1, m_2, m_3])
+    for i, out in enumerate(outputs):
+        print(f"Head {i+1} output shape: {out.shape}")

@@ -1,13 +1,6 @@
-# input-output params
-input_feature_dim:
-  - 25
-  - 41
-  - 768
+# input params
+input_feature_dim: 41
 
-output_dim:
-  - 5
-
-# input handlers
 special_handling:
   wavlm_baseplus:
     type: weighted_sum
@@ -40,3 +33,17 @@ aligned_time_dim: 300
 multimodal_signal: True
 n_layers_mms: 3
 tam_fusion: True
+
+# LinMult task-specific output heads
+heads:
+  - type: sequence_aggregation
+    norm: bn
+    pooling: gap
+    hidden_dim: 256 
+    dropout: 0.1
+    output_dim: 7
+  - type: sequence
+    norm: bn
+    hidden_dim: 256
+    dropout: 0.1
+    output_dim: 2

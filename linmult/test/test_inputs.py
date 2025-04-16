@@ -43,7 +43,7 @@ class TestInputs(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'time_dim_reducer': 'gmp'
             }
         )
@@ -55,7 +55,10 @@ class TestInputs(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2],
-                'output_dim': [self.output_dim_1, self.output_dim_2],
+                'heads': [
+                    {'type': 'simple', 'output_dim': self.output_dim_1},
+                    {'type': 'simple', 'output_dim': self.output_dim_2}
+                ],
                 'time_dim_reducer': 'gap'
             }
         )
@@ -68,7 +71,7 @@ class TestInputs(unittest.TestCase):
         model = LinMulT(
             {
                 'input_feature_dim': [self.feature_dim_1, self.feature_dim_2, self.feature_dim_3],
-                'output_dim': [self.output_dim_1],
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}],
                 'time_dim_reducer': 'gap'
             }
         )
@@ -80,7 +83,7 @@ class TestInputs(unittest.TestCase):
         model = LinT(
             {
                 'input_feature_dim': self.feature_dim_1,
-                'output_dim': [self.output_dim_1]
+                'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}]
             }
         )
         output = model(self.x_1)
