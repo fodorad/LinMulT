@@ -45,11 +45,11 @@ x = torch.rand((batch_size, time_dim_1, feature_dim_1))
 model = LinT(
     {
         'input_feature_dim': feature_dim_1,
-        'heads': [{'type': 'simple', 'output_dim': output_dim_1}]
+        'heads': [{'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1}]
     }
 )
 output_heads = model(x)
-assert output_heads[0].shape == (batch_size, time_dim_1, output_dim_1)
+assert output_heads['head_0'].shape == (batch_size, time_dim_1, output_dim_1)
 ```
 
 ### Input sequence without mask, single aggregated output head
@@ -70,12 +70,12 @@ x = torch.rand((batch_size, time_dim_1, feature_dim_1))
 model = LinT(
     {
         'input_feature_dim': feature_dim_1,
-        'heads': [{'type': 'simple', 'output_dim': output_dim_1}],
+        'heads': [{'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1}],
         'time_dim_reducer': 'attentionpool'
     }
 )
 output_heads = model(x)
-assert output_heads[0].shape == (batch_size, output_dim_1)
+assert output_heads['head_0'].shape == (batch_size, output_dim_1)
 ```
 
 ### Input sequence without mask, single aggregated output head
@@ -96,13 +96,13 @@ x = torch.rand((batch_size, time_dim_1, feature_dim_1))
 model = LinT(
     {
         'input_feature_dim': feature_dim_1,
-        'heads': [{'type': 'simple', 'output_dim': output_dim_1}]
+        'heads': [{'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1}]
     }
 )
 output_heads = model(x)
-assert output_heads[0].shape == (batch_size, time_dim_1, output_dim_1)
+assert output_heads['head_0'].shape == (batch_size, time_dim_1, output_dim_1)
 
-output = apply_logit_aggregation(x=output_heads[0], method='meanpooling')
+output = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
 assert output.shape == (batch_size, output_dim_1)
 ```
 
@@ -125,17 +125,17 @@ model = LinT(
     {
         'input_feature_dim': feature_dim_1,
         'heads': [
-            {'type': 'simple', 'output_dim': output_dim_1},
-            {'type': 'simple', 'output_dim': output_dim_2}
+            {'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1},
+            {'name': 'head_1', 'type': 'simple', 'output_dim': output_dim_2}
         ]
     }
 )
 output_heads = model(x, mask)
-assert output_heads[0].shape == (batch_size, time_dim_1, output_dim_1)
-assert output_heads[1].shape == (batch_size, time_dim_1, output_dim_2)
+assert output_heads['head_0'].shape == (batch_size, time_dim_1, output_dim_1)
+assert output_heads['head_1'].shape == (batch_size, time_dim_1, output_dim_2)
 
-output_0 = apply_logit_aggregation(x=output_heads[0], method='meanpooling')
-output_1 = apply_logit_aggregation(x=output_heads[1], method='meanpooling')
+output_0 = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
+output_1 = apply_logit_aggregation(x=output_heads['head_1'], method='meanpooling')
 assert output_0.shape == (batch_size, output_dim_1)
 assert output_1.shape == (batch_size, output_dim_2)
 ```
@@ -159,16 +159,16 @@ model = LinT(
     {
         'input_feature_dim': feature_dim_1,
         'heads': [
-            {'type': 'sequence', 'output_dim': output_dim_1},
-            {'type': 'sequence_aggregation', 'output_dim': output_dim_2}
+            {'name': 'head_0', 'type': 'sequence', 'output_dim': output_dim_1},
+            {'name': 'head_1', 'type': 'sequence_aggregation', 'output_dim': output_dim_2}
         ]
     }
 )
 output_heads = model(x, mask)
-assert output_heads[0].shape == (batch_size, time_dim_1, output_dim_1)
-assert output_heads[1].shape == (batch_size, output_dim_2)
+assert output_heads['head_0'].shape == (batch_size, time_dim_1, output_dim_1)
+assert output_heads['head_1'].shape == (batch_size, output_dim_2)
 
-output_0 = apply_logit_aggregation(x=output_heads[0], method='meanpooling')
+output_0 = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
 assert output_0.shape == (batch_size, output_dim_1)
 ```
 
@@ -191,13 +191,13 @@ x_2 = torch.rand((batch_size, time_dim, feature_dim_2))
 model = LinMulT(
     {
         'input_feature_dim': [feature_dim_1, feature_dim_2],
-        'heads': [{'type': 'simple', 'output_dim': output_dim_1}]
+        'heads': [{'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1}]
     }
 )
 output_heads = model([x_1, x_2])
-assert output_heads[0].shape == (batch_size, time_dim, output_dim_1)
+assert output_heads['head_0'].shape == (batch_size, time_dim, output_dim_1)
 
-output = apply_logit_aggregation(x=output_heads[0], method='meanpooling')
+output = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
 assert output.shape == (batch_size, output_dim_1)
 ```
 
@@ -224,15 +224,15 @@ model = LinMulT(
     {
         'input_feature_dim': [feature_dim_1, feature_dim_2, feature_dim_3],
         'heads': [
-            {'type': 'simple', 'output_dim': output_dim_1},
-            {'type': 'simple', 'output_dim': output_dim_2}
-        ]
+            {'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1},
+            {'name': 'head_1', 'type': 'simple', 'output_dim': output_dim_2}
+        ],
         'time_dim_reducer': 'gap',
     }
 )
 output_heads = model([x_1, x_2, x_3], [mask_1, mask_2, mask_3])
-assert output_heads[0].shape == (batch_size, output_dim_1)
-assert output_heads[1].shape == (batch_size, output_dim_2)
+assert output_heads['head_0'].shape == (batch_size, output_dim_1)
+assert output_heads['head_1'].shape == (batch_size, output_dim_2)
 ```
 
 ### 3 input sequences with different time dimensions, a missing input, enhanced multimodal signal module
@@ -257,8 +257,8 @@ model = LinMulT(
     {
         'input_feature_dim': [feature_dim_1, feature_dim_2, feature_dim_3],
         'heads': [
-            {'type': 'simple', 'output_dim': output_dim_1},
-            {'type': 'simple', 'output_dim': output_dim_2}
+            {'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1},
+            {'name': 'head_1', 'type': 'simple', 'output_dim': output_dim_2}
         ],
         'multimodal_signal': True,
         'time_dim_aligner': 'amp',
@@ -267,9 +267,10 @@ model = LinMulT(
     }
 )
 output_heads = model([x_1, x_2, x_3], [mask_1, mask_2, mask_3f])
-assert output_heads[0].shape == (batch_size, time_dim_2, output_dim_1)
+assert output_heads['head_0'].shape == (batch_size, time_dim_2, output_dim_1)
+assert output_heads['head_1'].shape == (batch_size, time_dim_2, output_dim_2)
 
-output = apply_logit_aggregation(x=output_heads[0], method='meanpooling')
+output = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
 assert output.shape == (batch_size, output_dim_1)
 ```
 
@@ -296,8 +297,8 @@ model = LinMulT(
     {
         'input_feature_dim': [feature_dim_1, feature_dim_2, feature_dim_3],
         'heads': [
-            {'type': 'sequence', 'output_dim': output_dim_1},
-            {'type': 'sequence_aggregation', 'output_dim': output_dim_2}
+            {'name': 'head_0', 'type': 'sequence', 'output_dim': output_dim_1},
+            {'name': 'head_1', 'type': 'sequence_aggregation', 'output_dim': output_dim_2}
         ],
         'multimodal_signal': True,
         'time_dim_aligner': 'amp',
@@ -306,10 +307,10 @@ model = LinMulT(
     }
 )
 output_heads = model([x_1, x_2, x_3], [mask_1, mask_2, mask_3f])
-assert output_heads[0].shape == (batch_size, time_dim_2, output_dim_1)
-assert output_heads[1].shape == (batch_size, output_dim_2)
+assert output_heads['head_0'].shape == (batch_size, time_dim_2, output_dim_1)
+assert output_heads['head_1'].shape == (batch_size, output_dim_2)
 
-output = apply_logit_aggregation(x=output_heads[0], method='meanpooling')
+output = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
 assert output.shape == (batch_size, output_dim_1)
 ```
 
@@ -333,10 +334,10 @@ config = load_config("configs/LinMulT.yaml")
 model = LinMulT(config)
 
 output_heads = model([x_1, x_2, x_3])
-assert output_heads[0].shape == (batch_size, output_dim_1)
-assert output_heads[1].shape == (batch_size, time_dim_1, output_dim_2)
+assert output_heads['head_0'].shape == (batch_size, output_dim_1)
+assert output_heads['head_1'].shape == (batch_size, time_dim_1, output_dim_2)
 
-output = apply_logit_aggregation(x=output_heads[1], method='meanpooling')
+output = apply_logit_aggregation(x=output_heads['head_1'], method='meanpooling')
 assert output.shape == (batch_size, output_dim_2)
 ```
 
@@ -408,4 +409,4 @@ The code is inspired by the following two materials:
 
 # Contact
 
-* Ádám Fodor (foauaai@inf.elte.hu) [[website](https://adamfodor.com)]
+* Ádám Fodor (fodorad201@gmail.com) [[website](https://adamfodor.com)]

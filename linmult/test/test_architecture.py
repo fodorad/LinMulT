@@ -30,7 +30,7 @@ class TestArchitecture(unittest.TestCase):
                 'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}]
             }
         )
-        output_seq = model([self.x_2, self.x_3])
+        output_seq = list(model([self.x_2, self.x_3]).values())
         output_cls = apply_logit_aggregation(x=output_seq[0], method='meanpooling')
         self.assertEqual(output_seq[0].shape, (self.batch_size, self.time_dim_2, self.output_dim_1))
         self.assertEqual(output_cls.shape, (self.batch_size, self.output_dim_1))
@@ -80,7 +80,7 @@ class TestArchitecture(unittest.TestCase):
                 'aligned_time_dim': 450,
             }
         )
-        output = model([self.x_1, self.x_2])
+        output = list(model([self.x_1, self.x_2]).values())
         self.assertEqual(output[0].shape, (self.batch_size, 450, self.output_dim_1))
 
 
@@ -92,7 +92,7 @@ class TestArchitecture(unittest.TestCase):
                 'time_dim_reducer': 'gap'
             }
         )
-        output = model([self.x_1, self.x_2])
+        output = list(model([self.x_1, self.x_2]).values())
         self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
 
 
@@ -107,7 +107,7 @@ class TestArchitecture(unittest.TestCase):
                 'aligned_time_dim': 450,
             }
         )
-        output = model([self.x_1, self.x_2])
+        output = list(model([self.x_1, self.x_2]).values())
         self.assertEqual(output[0].shape, (self.batch_size, 450, self.output_dim_1))
 
 
@@ -122,7 +122,7 @@ class TestArchitecture(unittest.TestCase):
                 'time_dim_reducer': 'gap'
             }
         )
-        output = model([self.x_1, self.x_2, self.x_3])
+        output = list(model([self.x_1, self.x_2, self.x_3]).values())
         self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
 
 
@@ -137,7 +137,7 @@ class TestArchitecture(unittest.TestCase):
                 'time_dim_reducer': 'attentionpool'
             }
         )
-        output = model([self.x_1, self.x_2])
+        output = list(model([self.x_1, self.x_2]).values())
         self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
 
 
@@ -149,7 +149,7 @@ class TestArchitecture(unittest.TestCase):
                 'time_dim_reducer': 'attentionpool',
             }
         )
-        output = model(self.x_1)
+        output = list(model(self.x_1).values())
         self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
 
 

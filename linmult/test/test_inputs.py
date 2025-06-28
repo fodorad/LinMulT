@@ -47,7 +47,7 @@ class TestInputs(unittest.TestCase):
                 'time_dim_reducer': 'gmp'
             }
         )
-        output = model([self.x_1, self.x_2])
+        output = list(model([self.x_1, self.x_2]).values())
         self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
 
 
@@ -62,7 +62,7 @@ class TestInputs(unittest.TestCase):
                 'time_dim_reducer': 'gap'
             }
         )
-        output = model([self.x_1, self.x_2])
+        output = list(model([self.x_1, self.x_2]).values())
         self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
         self.assertEqual(output[1].shape, (self.batch_size, self.output_dim_2))
 
@@ -75,8 +75,46 @@ class TestInputs(unittest.TestCase):
                 'time_dim_reducer': 'gap'
             }
         )
-        output = model([self.x_1, self.x_2, self.x_3])
+        output = list(model([self.x_1, self.x_2, self.x_3]).values())
         self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
+
+    def test_2i_upsample(self):
+        model = LinMulT(
+            {
+                'input_feature_dim': [self.feature_dim_1, self.feature_dim_2],
+                'heads': [
+                    {'type': 'upsample', 'input_time_dim': 300, 'output_time_dim': self.time_dim_1, 'output_dim': self.feature_dim_1},
+                    {'type': 'upsample', 'input_time_dim': 300, 'output_time_dim': self.time_dim_2, 'output_dim': self.feature_dim_2},
+                ],
+                'multimodal_signal': True,
+                'time_dim_aligner': 'aap',
+                'aligned_time_dim': 300,
+                'tam_fusion': True
+            }
+        )
+        output = list(model([self.x_1, self.x_2]).values())
+        self.assertEqual(output[0].shape, (self.batch_size, self.time_dim_1, self.feature_dim_1))
+        self.assertEqual(output[1].shape, (self.batch_size, self.time_dim_2, self.feature_dim_2))
+
+
+    def test_2i_downsample(self):
+        model = LinMulT(
+            {
+                'input_feature_dim': [self.feature_dim_1, self.feature_dim_2],
+                'heads': [
+                    {'type': 'downsample', 'input_time_dim': 2000, 'output_time_dim': self.time_dim_1, 'output_dim': self.feature_dim_1},
+                    {'type': 'downsample', 'input_time_dim': 2000, 'output_time_dim': self.time_dim_2, 'output_dim': self.feature_dim_2},
+                ],
+                'multimodal_signal': True,
+                'time_dim_aligner': 'aap',
+                'aligned_time_dim': 2000,
+                'tam_fusion': True
+            }
+        )
+        output = list(model([self.x_1, self.x_2]).values())
+        self.assertEqual(output[0].shape, (self.batch_size, self.time_dim_1, self.feature_dim_1))
+        self.assertEqual(output[1].shape, (self.batch_size, self.time_dim_2, self.feature_dim_2))
 
 
     def test_lint(self):
@@ -86,7 +124,7 @@ class TestInputs(unittest.TestCase):
                 'heads': [{'type': 'simple', 'output_dim': self.output_dim_1}]
             }
         )
-        output = model(self.x_1)
+        output = list(model(self.x_1).values())
         self.assertEqual(output[0].shape, (self.batch_size, self.time_dim_1, self.output_dim_1))
 
 

@@ -26,7 +26,7 @@ class LinMulT(nn.Module):
         self.module_time_dim_reducer = config.get("time_dim_reducer", None)
         self.module_multimodal_signal = config.get("multimodal_signal", None)
         self.module_tam_fusion = config.get("tam_fusion", None)
-        self.module_self_attention_fusion = config.get("module_self_attention_fusion", None)
+        self.module_self_attention_fusion = config.get("sa_fusion", None)
         self.module_ffn_fusion = config.get("ffn_fusion", None)
         self.head_configs = config.get("heads", [])
 
@@ -69,7 +69,7 @@ class LinMulT(nn.Module):
         fused_representation, mask = self._apply_fusion(branch_representations, masks)
         logging.debug(f'fused representation size: {tuple(fused_representation.shape)}')
         outputs = self._apply_output_heads(fused_representation, mask)
-        logging.debug(f'output sizes: {[tuple(x.shape) for x in outputs]}')
+        logging.debug(f'output sizes: {"".join([f"{name}: {tuple(x.shape)}" for name, x in outputs.items()])}')
         return outputs
 
 
@@ -171,16 +171,17 @@ class LinMulT(nn.Module):
         fusion_dim_multiplier = 1 / self.n_sequences if self.module_tam_fusion else 1
         combined_dim = max(int(n_cmt * n_sat * fusion_dim_multiplier), 2) * self.d_model
 
-        self.output_heads = nn.ModuleList()
+        self.output_heads = nn.ModuleDict()
 
-        for head_cfg in self.head_configs:
+        for i, head_cfg in enumerate(self.head_configs):
             head = HeadFactory.create_head(
-                name=head_cfg['type'],
+                type=head_cfg['type'],
                 input_dim=combined_dim,
                 output_dim=head_cfg['output_dim'],
                 config=head_cfg
             )
-            self.output_heads.append(head)
+            head_name = head_cfg.get('name', f'head_{i}')
+            self.output_heads[head_name] = head
 
 
     def _apply_projections(self,
@@ -295,9 +296,9 @@ class LinMulT(nn.Module):
         return x, mask
 
 
-    def _apply_output_heads(self, x: torch.Tensor, mask: torch.BoolTensor | None) -> list[torch.Tensor]:
+    def _apply_output_heads(self, x: torch.Tensor, mask: torch.BoolTensor | None) -> dict[str, torch.Tensor]:
         """Apply output heads"""
-        return [head(x, mask=mask) for head in self.output_heads]
+        return {name: head(x, mask=mask) for name, head in self.output_heads.items()}
 
 
 if __name__ == "__main__":
@@ -316,5 +317,5 @@ if __name__ == "__main__":
     m_2 = torch.ones((8, 300), dtype=bool)
     m_3 = torch.zeros((8, 500), dtype=bool)
     outputs = model([x_1, x_2, x_3], [m_1, m_2, m_3])
-    for i, out in enumerate(outputs):
-        print(f"Head {i+1} output shape: {out.shape}")
+    for i, (name, out) in enumerate(outputs.items()):
+        print(f"Head {i+1} ({name}) output shape: {out.shape}")

@@ -56,15 +56,16 @@ class LinT(nn.Module):
             self.projection_2 = nn.Linear(self.d_model, self.d_model)
 
         # 3. Output heads
-        self.output_heads = nn.ModuleList([
-            HeadFactory.create_head(
-                name=head_cfg['type'],
+        self.output_heads = nn.ModuleDict()
+        for i, head_cfg in enumerate(self.head_configs):
+            head = HeadFactory.create_head(
+                type=head_cfg['type'],
                 input_dim=self.d_model,
                 output_dim=head_cfg['output_dim'],
                 config=head_cfg
             )
-            for head_cfg in self.head_configs
-        ])
+            head_name = head_cfg.get('name', f'head_{i}')
+            self.output_heads[head_name] = head
 
 
     def forward(self, x: torch.Tensor, mask: torch.BoolTensor = None, name: str = None) -> torch.Tensor:
@@ -133,9 +134,9 @@ class LinT(nn.Module):
         return x
 
 
-    def _apply_output_heads(self, x: torch.Tensor, mask: torch.BoolTensor = None) -> list[torch.Tensor]:
+    def _apply_output_heads(self, x: torch.Tensor, mask: torch.BoolTensor = None) -> dict[str, torch.Tensor]:
         """Apply output heads"""
-        return [head(x, mask=mask) for head in self.output_heads]
+        return {name: head(x, mask=mask) for name, head in self.output_heads.items()}
 
 
 if __name__ == "__main__":
@@ -154,5 +155,5 @@ if __name__ == "__main__":
     ])
     m = torch.stack([m1, m2], dim=0) # (B, T)
     outputs = model(x, m)
-    for i, out in enumerate(outputs):
-        print(f"Head {i+1} output shape: {out.shape}")
+    for i, (name, out) in enumerate(outputs.items()):
+        print(f"Head {i+1} ({name}) output shape: {out.shape}")
