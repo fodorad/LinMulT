@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "linmult"
-version = "1.7.0"
+version = "1.8.0"
 description = "General-purpose Multimodal Transformer with Linear Complexity Attention Mechanism."
 keywords = ["multimodal", "transformer", "linear-complexity attention"]
 authors = [

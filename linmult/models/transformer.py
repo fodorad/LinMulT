@@ -31,7 +31,7 @@ class TransformerEncoder(nn.Module):
 
         # Embedding scaling and positional encoding
         self.embed_scale = math.sqrt(d_model)
-        self.embed_positions = PositionalEncoding()
+        self.embed_positions = PositionalEncoding(dropout=config.get("dropout_pe", 0.))
 
         # Dropout for input embeddings
         self.dropout_qkv = config.get("dropout_qkv", 0.)
@@ -194,7 +194,7 @@ class TransformerEncoderLayer(nn.Module):
         residual = x_q
         x_q = self.layer_norms[1](x_q)
 
-        x_q = F.relu(self.fc1(x_q))
+        x_q = F.gelu(self.fc1(x_q))
         x_q = F.dropout(x_q, p=self.dropout_relu, training=self.training)
         x_q = self.fc2(x_q)
         x_q = F.dropout(x_q, p=self.dropout_residual, training=self.training)
@@ -403,3 +403,10 @@ class AttentionPooling(nn.Module):
         attn_weights = torch.softmax(attn_weights, dim=-1)  # Shape: (B, T)
         weighted_avg = torch.sum(x * attn_weights.unsqueeze(-1), dim=1)  # Shape: (B, d_model)
         return weighted_avg
+
+
+if __name__ == '__main__':
+    x = torch.randn(8, 300, 40)
+    mask = torch.ones((8, 300), dtype=bool)
+    ap = AttentionPooling(40)
+    print(ap(x, mask).shape)

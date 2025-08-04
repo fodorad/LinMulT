@@ -1,5 +1,6 @@
 import torch.nn as nn
 from linmult.models.modules import BN, IN
+from linmult.models.transformer import AttentionPooling
 
 
 class BaseHead(nn.Module):
@@ -25,14 +26,23 @@ class SequenceAggregationHead(BaseHead):
         elif config["norm"] == "in":
             self.norm = IN(input_dim, time_aware=True)
 
+        self.is_attention_pooling = False
         if config.get("pooling", "gap") == "gap":
             self.pool = nn.AdaptiveAvgPool1d(1)
         elif config["pooling"] == "gmp":
             self.pool = nn.AdaptiveMaxPool1d(1)
+        elif config["pooling"] == "attentionpool":
+            self.is_attention_pooling = True
+            self.pool = AttentionPooling(config.get("hidden_dim", 256))
+        else:
+            raise ValueError(f"Unknown pooling type: {config['pooling']}")
 
-        self.proj = nn.Sequential(
+        self.proj_1 =  nn.Sequential(
             nn.Linear(input_dim, config.get("hidden_dim", 256)),
+            nn.GELU(),
             nn.Dropout(config.get("dropout", 0.1)),
+        )
+        self.proj_2 = nn.Sequential(
             nn.Linear(config.get("hidden_dim", 256), output_dim)
         )
 
@@ -45,8 +55,15 @@ class SequenceAggregationHead(BaseHead):
         if mask is not None:
             x = x * mask.unsqueeze(-1)
 
-        x = self.pool(x.permute(0,2,1)).squeeze(-1) # (B,F)
-        x = self.proj(x)
+        x = self.proj_1(x)
+
+        if self.is_attention_pooling:
+            x = self.pool(x, mask) # (B,T,F) -> (B,F)
+        else:
+            x = self.pool(x.permute(0,2,1)).squeeze(-1) # (B,F)
+
+        x = self.proj_2(x)
+
         return x
 
 
@@ -63,6 +80,7 @@ class SequenceHead(BaseHead):
 
         self.proj = nn.Sequential(
             nn.Linear(input_dim, config.get("hidden_dim", 256)),
+            nn.GELU(),
             nn.Dropout(config.get("dropout", 0.1)),
             nn.Linear(config.get("hidden_dim", 256), output_dim)
         )
@@ -94,6 +112,7 @@ class VectorHead(BaseHead):
 
         self.proj = nn.Sequential(
             nn.Linear(input_dim, config.get("hidden_dim", 256)),
+            nn.GELU(),
             nn.Dropout(config.get("dropout", 0.1)),
             nn.Linear(config.get("hidden_dim", 256), output_dim)
         )
@@ -115,6 +134,8 @@ class SimpleHead(BaseHead):
             self.pool = nn.AdaptiveAvgPool1d(1)
         elif pooling == "gmp":
             self.pool = nn.AdaptiveMaxPool1d(1)
+        elif pooling == "attentionpool":
+            self.pool = AttentionPooling(input_dim)
         else:
             self.pool = None
 
@@ -136,7 +157,11 @@ class UpsampleHead(BaseHead):
         input_time_dim = config["input_time_dim"]
 
         # Initial projection
-        self.proj = nn.Linear(input_dim, output_dim)
+        self.proj = nn.Sequential(
+            nn.Linear(input_dim, output_dim),
+            nn.GELU(),
+            nn.Dropout(config.get("dropout", 0.1)),
+        )
 
         # Calculate number of upsampling layers needed
         self.upsample_layers = nn.ModuleList()
@@ -152,7 +177,7 @@ class UpsampleHead(BaseHead):
                     stride=2,
                     padding=1
                 ),
-                nn.ReLU()
+                nn.GELU()
             ))
             current_dim *= 2
 
@@ -186,7 +211,11 @@ class DownsampleHead(BaseHead):
         input_time_dim = config["input_time_dim"]
 
         # Initial projection
-        self.proj = nn.Linear(input_dim, output_dim)
+        self.proj = nn.Sequential(
+            nn.Linear(input_dim, output_dim),
+            nn.GELU(),
+            nn.Dropout(config.get("dropout", 0.1)),
+        )
 
         # Calculate number of downsampling layers needed
         self.downsample_layers = nn.ModuleList()
@@ -203,7 +232,7 @@ class DownsampleHead(BaseHead):
                     padding=1,
                     padding_mode='replicate'
                 ),
-                nn.ReLU()
+                nn.GELU()
             ))
             current_dim = current_dim // 2  # Integer division to track dimension
 

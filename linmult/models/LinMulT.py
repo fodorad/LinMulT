@@ -28,12 +28,16 @@ class LinMulT(nn.Module):
         self.module_tam_fusion = config.get("tam_fusion", None)
         self.module_self_attention_fusion = config.get("sa_fusion", None)
         self.module_ffn_fusion = config.get("ffn_fusion", None)
+        self.module_unimodal_sat = config.get("unimodal_sat", None)
         self.head_configs = config.get("heads", [])
+        self.auxiliary_head_configs = config.get("auxiliary_heads", [])
 
         # Initialize stages
         self._init_projections()
+        self._init_unimodal_transformers(config)
         self._init_module_multimodal_signal(config)
         self._init_crossmodal_transformers(config)
+        self._init_auxiliary_heads()
         self._init_module_time_dim_reducer(config)
         self._init_module_fusion(config)
         self._init_output_heads()
@@ -66,10 +70,14 @@ class LinMulT(nn.Module):
         logging.debug(f'projected input sizes (with multimodal signal): {[tuple(x.shape) for x in projected_inputs]}')
         branch_representations = self._apply_branch(projected_inputs, masks)
         logging.debug(f'branch representation sizes: {[tuple(x.shape) for x in branch_representations]}')
+        outputs_aux = self._apply_auxiliary_heads(branch_representations, masks)
         fused_representation, mask = self._apply_fusion(branch_representations, masks)
         logging.debug(f'fused representation size: {tuple(fused_representation.shape)}')
         outputs = self._apply_output_heads(fused_representation, mask)
         logging.debug(f'output sizes: {"".join([f"{name}: {tuple(x.shape)}" for name, x in outputs.items()])}')
+        
+        if self.auxiliary_head_configs:
+            return outputs, outputs_aux
         return outputs
 
 
@@ -104,8 +112,16 @@ class LinMulT(nn.Module):
                 "name": "TAM MMS",
                 "src_dim": self.n_sequences * self.d_model,
                 "tgt_dim": self.d_model,
-                "n_layers": config.get("n_layers_mms", 3)
+                "n_layers": config.get("n_layers_mms", 6)
             })
+
+
+    def _init_unimodal_transformers(self, config: dict):
+        if self.module_unimodal_sat:
+            self.unimodal_transformers = nn.ModuleList([
+                TransformerEncoder(config=config.copy() | {"name": f"Unimodal SA {input_index}"})
+                for input_index in range(self.n_sequences)
+            ])
 
 
     def _init_crossmodal_transformers(self, config: dict):
@@ -114,23 +130,24 @@ class LinMulT(nn.Module):
         for target_index in range(self.n_sequences):
             input_indices = [i for i in range(self.n_sequences) if i != target_index]
             crossmodal_transformers = [
-                TransformerEncoder(config=config.copy() | {"name": f"CM {input_index}->{target_index}"})
+                TransformerEncoder(config=config.copy() | {"name": f"CMT {input_index}->{target_index}"})
                 for input_index in input_indices
             ]
 
             if self.module_multimodal_signal:
                 crossmodal_transformers.append(
-                    TransformerEncoder(config=config.copy() | {"name": f"CM mms->{target_index}"})
+                    TransformerEncoder(config=config.copy() | {"name": f"CMT mms->{target_index}"})
                 )
 
             self.branch_crossmodal_transformers.append(nn.ModuleList(crossmodal_transformers))
 
+        combined_dim = ((self.n_sequences) if self.module_multimodal_signal else (self.n_sequences - 1)) * self.d_model
         self.branch_self_attention_transformers = nn.ModuleList([
             TransformerEncoder(
                 config=config.copy() | {
-                    "name": f"SA {target_index}",
-                    "d_model": ((self.n_sequences) if self.module_multimodal_signal else (self.n_sequences - 1)) * self.d_model,
-                    "n_layers": config.get("n_layers_sa", 3),
+                    "name": f"SAT {target_index}",
+                    "d_model": combined_dim,
+                    "n_layers": config.get("n_layers_sa", 6),
                 }
             )
             for target_index in range(self.n_sequences)
@@ -139,7 +156,8 @@ class LinMulT(nn.Module):
 
     def _init_module_fusion(self, config: dict):
         """Initialize fusion mechanisms."""
-        combined_dim = ((self.n_sequences) if self.module_multimodal_signal else self.n_sequences -1) * self.n_sequences * self.d_model
+        combined_dim = ((self.n_sequences) if self.module_multimodal_signal else self.n_sequences-1) * self.n_sequences * self.d_model
+        if self.module_unimodal_sat: combined_dim += self.d_model * self.n_sequences
 
         if self.module_tam_fusion:
 
@@ -147,7 +165,7 @@ class LinMulT(nn.Module):
                 "name": "TAM fusion",
                 "src_dim": combined_dim,
                 "tgt_dim": self.n_sequences * self.d_model,
-                "n_layers": config.get("n_layers_fusion", 3)
+                "n_layers": config.get("n_layers_fusion", 6)
             })
 
         if self.module_self_attention_fusion:
@@ -155,7 +173,7 @@ class LinMulT(nn.Module):
                 config=config.copy() | {
                     "name": "Fusion SA",
                     "d_model": combined_dim,
-                    "n_layers": config.get("n_layers_sa_fusion", 3),
+                    "n_layers": config.get("n_layers_sa_fusion", 6),
                 }
             )
 
@@ -172,7 +190,6 @@ class LinMulT(nn.Module):
         combined_dim = max(int(n_cmt * n_sat * fusion_dim_multiplier), 2) * self.d_model
 
         self.output_heads = nn.ModuleDict()
-
         for i, head_cfg in enumerate(self.head_configs):
             head = HeadFactory.create_head(
                 type=head_cfg['type'],
@@ -182,6 +199,29 @@ class LinMulT(nn.Module):
             )
             head_name = head_cfg.get('name', f'head_{i}')
             self.output_heads[head_name] = head
+
+
+    def _init_auxiliary_heads(self):
+        """Initialize auxiliary output layers."""
+        if not self.auxiliary_head_configs:
+            return
+
+        combined_dim = ((self.n_sequences) if self.module_multimodal_signal else (self.n_sequences - 1)) * self.d_model
+        if self.module_unimodal_sat: combined_dim += self.d_model
+
+        self.auxiliary_heads = nn.ModuleList()
+        for input_index in range(self.n_sequences):
+            input_aux_dict = nn.ModuleDict()
+            for head_index, head_cfg in enumerate(self.auxiliary_head_configs):
+                aux_head = HeadFactory.create_head(
+                    type=head_cfg['type'],
+                    input_dim=combined_dim,
+                    output_dim=head_cfg['output_dim'],
+                    config=head_cfg
+                )
+                aux_head_name = head_cfg.get('name', f'aux_head_{head_index}') + f'_{input_index}'
+                input_aux_dict[aux_head_name] = aux_head
+            self.auxiliary_heads.append(input_aux_dict)
 
 
     def _apply_projections(self,
@@ -262,9 +302,18 @@ class LinMulT(nn.Module):
                 dim=2
             )
 
-            branch_representations.append(
-                self.branch_self_attention_transformers[target_index](cross_modal_hidden, query_mask=mask_list[target_index])
-            )
+            sat_representation = self.branch_self_attention_transformers[target_index](cross_modal_hidden, query_mask=mask_list[target_index])
+
+            if self.module_unimodal_sat:
+                branch_representation = torch.cat([
+                    sat_representation,
+                    self.unimodal_transformers[target_index](x_list[target_index], query_mask=mask_list[target_index])
+                ], dim=2)
+            else:
+                branch_representation = sat_representation
+
+            branch_representations.append(branch_representation)
+
         return branch_representations
 
 
@@ -287,13 +336,25 @@ class LinMulT(nn.Module):
         if self.module_ffn_fusion:
             x = self.projection_2(
                 F.dropout(
-                    F.relu(self.projection_1(x)),
+                    F.gelu(self.projection_1(x)),
                     p=self.dropout_output,
                     training=self.training
                 )
             ) + x # ffn + residual
 
         return x, mask
+
+
+    def _apply_auxiliary_heads(self, x_list: list[torch.Tensor], mask_list: list[torch.BoolTensor | None]) -> list[dict[str, torch.Tensor]]:
+        """Apply auxiliary heads"""
+        if not self.auxiliary_head_configs:
+            return None
+
+        return [
+            {name: head(x, mask=mask) for name, head in aux_heads.items()} 
+            for x, mask, aux_heads 
+            in zip(x_list, mask_list, self.auxiliary_heads)
+        ]
 
 
     def _apply_output_heads(self, x: torch.Tensor, mask: torch.BoolTensor | None) -> dict[str, torch.Tensor]:
@@ -307,7 +368,7 @@ if __name__ == "__main__":
                         format="%(asctime)s %(levelname)s %(message)s",
                         datefmt="%Y-%m-%d %H:%M:%S")
 
-    config = load_config('configs/LinMulT.yaml')
+    config = load_config('configs/LinMulT_with_aux.yaml')
     model = LinMulT(config)
 
     x_1 = torch.rand((8, 300, 25))
@@ -316,6 +377,10 @@ if __name__ == "__main__":
     m_1 = torch.ones((8, 300), dtype=bool)
     m_2 = torch.ones((8, 300), dtype=bool)
     m_3 = torch.zeros((8, 500), dtype=bool)
-    outputs = model([x_1, x_2, x_3], [m_1, m_2, m_3])
+    outputs, outputs_aux = model([x_1, x_2, x_3], [m_1, m_2, m_3])
     for i, (name, out) in enumerate(outputs.items()):
         print(f"Head {i+1} ({name}) output shape: {out.shape}")
+
+    for i, aux_head_dict in enumerate(outputs_aux):
+        for name, out in aux_head_dict.items():
+            print(f"Auxiliary head {i+1} ({name}) output shape: {out.shape}")

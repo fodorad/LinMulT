@@ -45,9 +45,15 @@ class TAM(nn.Module):
         self.aligned_time_dim = config['aligned_time_dim']
         self.time_dim_aligner = TemporalFactory.time_dim_aligner(config['time_dim_aligner']) # TA
         self.transformer = TransformerEncoder(config=config.copy() | {
-            "d_model": config.get("src_dim"),
+            "d_model": config["src_dim"],
         })
-        self.projector = nn.Conv1d(config.get("src_dim"), config.get("tgt_dim"), kernel_size=1, padding=0, bias=False)
+        self.projector = nn.Sequential(
+            nn.Conv1d(config["src_dim"], config["tgt_dim"], kernel_size=1, padding=0, bias=False),
+            nn.BatchNorm1d(config["tgt_dim"]),
+            nn.GELU(),
+            nn.Dropout(config.get("dropout_tam", 0.1)),
+            nn.Conv1d(config["tgt_dim"], config["tgt_dim"], kernel_size=1, padding=0, bias=True)
+        )
 
 
     def forward(self, x_list: list[torch.Tensor], mask_list: list[torch.Tensor | None]) -> tuple[torch.Tensor, torch.Tensor]:
