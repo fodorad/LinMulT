@@ -400,6 +400,11 @@ class AttentionPooling(nn.Module):
         attn_weights = self.attention(x).squeeze(-1)  # Shape: (B, T)
         if mask is not None:
             attn_weights = attn_weights.masked_fill(~mask, float('-inf'))  # Ignore padding with -inf
+
+            all_masked = (~mask).all(dim=1)  # Shape: (B,)
+            if all_masked.any():
+                attn_weights[all_masked] = 0.0
+
         attn_weights = torch.softmax(attn_weights, dim=-1)  # Shape: (B, T)
         weighted_avg = torch.sum(x * attn_weights.unsqueeze(-1), dim=1)  # Shape: (B, d_model)
         return weighted_avg
