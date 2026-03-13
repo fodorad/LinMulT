@@ -1,0 +1,63 @@
+linmult.core.projection
+=======================
+
+.. py:module:: linmult.core.projection
+
+.. autoapi-nested-parse::
+
+   Projection module for LinMulT and LinT.
+
+   ProjectionModule handles per-modality feature projection with optional
+   special handling (e.g. weighted-sum over transformer layers).
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   linmult.core.projection.ProjectionModule
+
+
+Module Contents
+---------------
+
+.. py:class:: ProjectionModule(input_feature_dims: list[int], d_model: int, dropout: float = 0.0, special_handling: dict[str, Any] | None = None)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Projects each modality's features to a shared dimension.
+
+   For each modality, applies a 1-D convolution (kernel=1) that maps
+   ``input_feature_dims[i]`` to ``d_model``.  Before projection, optional
+   special handling (e.g. weighted-sum aggregation over stacked transformer
+   layers) can reduce a 4-D input ``(B, N, T, F)`` to ``(B, T, F)``.
+
+   :param input_feature_dims: Feature dimension per modality.
+   :type input_feature_dims: list[int]
+   :param d_model: Target projection dimension.
+   :type d_model: int
+   :param dropout: Dropout applied to inputs before projection.
+   :type dropout: float
+   :param special_handling: Dict mapping modality names to
+                            handling specs. Currently supports
+                            ``{"type": "weighted_sum", "start_layer": int, "end_layer": int}``.
+   :type special_handling: dict[str, Any], optional
+
+   Initialize internal Module state, shared by both nn.Module and ScriptModule.
+
+
+   .. py:method:: forward(x_list: list[torch.Tensor], names: list[str] | None = None) -> list[torch.Tensor]
+
+      Project each modality to ``d_model``.
+
+      :param x_list: One tensor per modality, each ``(B, T, F)`` or
+                     ``(B, N, T, F)`` for weighted-sum inputs.
+      :param names: Optional modality names for special handling lookup.
+
+      :returns: List of projected tensors, each ``(B, T, d_model)``.
+
+
+

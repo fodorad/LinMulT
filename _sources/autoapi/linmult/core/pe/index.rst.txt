@@ -1,0 +1,59 @@
+linmult.core.pe
+===============
+
+.. py:module:: linmult.core.pe
+
+.. autoapi-nested-parse::
+
+   Sinusoidal positional encoding with optional dropout.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   linmult.core.pe.PositionalEncoding
+
+
+Module Contents
+---------------
+
+.. py:class:: PositionalEncoding(dropout: float = 0.1)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Sinusoidal positional encoding for sequence inputs.
+
+   Adds fixed sinusoidal position encodings to the input tensor, following
+   Vaswani et al. (2017). The encoding matrix is computed lazily and cached;
+   it is only recomputed when the sequence is longer or the feature dimension
+   changes.
+
+   :param dropout: Dropout probability applied after adding the encoding.
+                   Defaults to ``0.1``.
+   :type dropout: float
+
+   Initialize PositionalEncoding.
+
+
+   .. py:method:: forward(x: torch.Tensor) -> torch.Tensor
+
+      Add sinusoidal positional encoding to the input.
+
+      The encoding matrix is rebuilt only when the cached tensor is shorter
+      than the current sequence or the feature dimensionality has changed.
+      For odd feature dimensions, the cosine slot count is ``floor(F/2)``
+      while the sine slot count is ``ceil(F/2)``; the division term is
+      sliced accordingly so no index is out of range.
+
+      :param x: Input tensor of shape ``(B, T, F)``.
+      :type x: torch.Tensor
+
+      :returns: Encoded tensor of shape ``(B, T, F)`` with dropout applied.
+      :rtype: torch.Tensor
+
+
+

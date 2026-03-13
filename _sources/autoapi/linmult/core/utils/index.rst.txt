@@ -1,0 +1,58 @@
+linmult.core.utils
+==================
+
+.. py:module:: linmult.core.utils
+
+.. autoapi-nested-parse::
+
+   Utility functions: config loading and logit aggregation.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   linmult.core.utils.load_config
+   linmult.core.utils.apply_logit_aggregation
+
+
+Module Contents
+---------------
+
+.. py:function:: load_config(config_file: str | pathlib.Path) -> dict
+
+   Load a YAML configuration file.
+
+   :param config_file: Path to the YAML file.
+   :type config_file: str | Path
+
+   :returns: Parsed configuration dictionary.
+   :rtype: dict
+
+
+.. py:function:: apply_logit_aggregation(x: torch.Tensor, mask: torch.Tensor | None = None, method: str = 'meanpooling') -> torch.Tensor
+
+   Aggregate logits across the time dimension.
+
+   Only timesteps where the mask is ``True`` (valid) contribute to the result.
+   Fully-masked samples (all ``False``) return a zero vector.
+
+   :param x: Logit tensor of shape ``(B, T, F)``.
+   :type x: torch.Tensor
+   :param mask: Boolean validity mask of shape ``(B, T)``.
+                ``True`` = valid timestep. If ``None``, all timesteps are treated as valid.
+   :type mask: torch.Tensor, optional
+   :param method: Aggregation method. One of:
+
+                  - ``"meanpooling"``: Masked mean over the time dimension.
+                  - ``"maxpooling"``: Masked max over the time dimension.
+   :type method: str
+
+   :returns: Aggregated output of shape ``(B, F)``.
+   :rtype: torch.Tensor
+
+   :raises ValueError: If ``method`` is not one of the supported values.
+
+

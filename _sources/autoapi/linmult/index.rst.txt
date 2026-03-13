@@ -1,0 +1,30 @@
+linmult
+=======
+
+.. py:module:: linmult
+
+.. autoapi-nested-parse::
+
+   LinMulT — Linear-complexity Multimodal Transformer.
+
+   A modular Transformer library for multimodal sequence modelling.
+   Handles variable-length inputs across any number of modalities, supports
+   missing-modality scenarios, and offers six attention variants from O(N²)
+   softmax to O(N·s) gated linear attention — all behind a single config key.
+
+   Public API::
+
+       from linmult import LinMulT, LinT, LinMulTConfig, LinTConfig, HeadConfig, AttentionConfig
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/linmult/core/index
+   /autoapi/linmult/models/index
+
+

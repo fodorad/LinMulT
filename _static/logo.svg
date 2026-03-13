@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 90" width="280" height="90">
+  <!-- Background -->
+  <rect width="280" height="90" rx="12" fill="#1a1a2e"/>
+
+  <!-- Accent bar -->
+  <rect x="16" y="18" width="4" height="54" rx="2" fill="#4f8ef7"/>
+
+  <!-- Full name: LinMulT, Mul in blue -->
+  <text x="30" y="54" font-family="'Segoe UI', Arial, sans-serif" font-size="32" font-weight="700">
+    <tspan fill="#e8eaf6">Lin</tspan><tspan fill="#4f8ef7">Mul</tspan><tspan fill="#e8eaf6">T</tspan>
+  </text>
+
+  <!-- Tagline: linear · multimodal · transformer -->
+  <text x="30" y="74" font-family="'Segoe UI', Arial, sans-serif" font-size="10"
+        fill="#7986cb" letter-spacing="0.5">linear · multimodal · transformer</text>
+</svg>

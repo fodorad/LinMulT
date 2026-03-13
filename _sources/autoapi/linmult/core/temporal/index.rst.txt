@@ -1,0 +1,409 @@
+linmult.core.temporal
+=====================
+
+.. py:module:: linmult.core.temporal
+
+.. autoapi-nested-parse::
+
+   Temporal reducers, aligners, and composite modules (TRM, TAM).
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   linmult.core.temporal.TemporalFactory
+   linmult.core.temporal.TemporalPadding
+   linmult.core.temporal.AdaptiveMaxPooling
+   linmult.core.temporal.AdaptiveAvgPooling
+   linmult.core.temporal.LastTimestamp
+   linmult.core.temporal.GlobalAvgPooling
+   linmult.core.temporal.GlobalMaxPooling
+   linmult.core.temporal.AttentionPooling
+   linmult.core.temporal.TRM
+   linmult.core.temporal.TAM
+
+
+Module Contents
+---------------
+
+.. py:class:: TemporalFactory
+
+   Factory for creating temporal signal aligners and reducers.
+
+
+   .. py:method:: create_aligner(method: str = 'aap') -> torch.nn.Module
+      :staticmethod:
+
+
+      Create a temporal aligner module.
+
+      :param method: Aligner type. One of:
+
+                     - ``"aap"``: Adaptive average pooling.
+                     - ``"amp"``: Adaptive max pooling.
+                     - ``"padding"``: Zero-padding / truncation.
+      :type method: str
+
+      :returns: The constructed aligner module.
+      :rtype: nn.Module
+
+      :raises ValueError: If ``method`` is not one of the supported values.
+
+
+
+   .. py:method:: create_reducer(d_model: int, reducer: str) -> torch.nn.Module
+      :staticmethod:
+
+
+      Create a temporal reducer module.
+
+      :param d_model: Feature dimensionality of the input tensor.
+                      Required for :class:`AttentionPooling`; ignored by other reducers.
+      :type d_model: int
+      :param reducer: Reducer type. One of ``"attentionpool"``,
+                      ``"gmp"``, ``"gap"``, ``"last"``.
+      :type reducer: str
+
+      :returns: The constructed reducer module.
+      :rtype: nn.Module
+
+      :raises ValueError: If ``reducer`` is not one of the supported values.
+
+
+
+.. py:class:: TemporalPadding(*args: Any, **kwargs: Any)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Temporal aligner via truncation or zero-padding.
+
+   Adjusts the time dimension of a tensor to exactly ``time_dim`` by
+   truncating if the sequence is too long, or zero-padding if too short.
+   The mask is updated accordingly (padded positions are ``False``).
+
+   Initialize internal Module state, shared by both nn.Module and ScriptModule.
+
+
+   .. py:method:: forward(x: torch.Tensor, time_dim: int, mask: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor]
+
+      Truncate or pad the time dimension.
+
+      :param x: Input tensor of shape ``(B, T, F)``.
+      :type x: torch.Tensor
+      :param time_dim: Target time dimension.
+      :type time_dim: int
+      :param mask: Validity mask of shape ``(B, T)``.
+                   True = valid. If ``None``, all input positions are treated as valid.
+      :type mask: torch.BoolTensor, optional
+
+      :returns:
+
+                Output tensor of shape
+                    ``(B, time_dim, F)`` and updated mask of shape ``(B, time_dim)``.
+      :rtype: tuple[torch.Tensor, torch.Tensor]
+
+
+
+.. py:class:: AdaptiveMaxPooling(*args: Any, **kwargs: Any)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Temporal aligner via adaptive max pooling.
+
+   Resizes the time dimension of a tensor to ``time_dim`` using
+   ``F.adaptive_max_pool1d``. Masked (padded) positions are filled with
+   ``-inf`` before pooling so they never win the max, and the output mask
+   is derived from the result.
+
+   Initialize internal Module state, shared by both nn.Module and ScriptModule.
+
+
+   .. py:method:: forward(x: torch.Tensor, time_dim: int, mask: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor]
+
+      Apply adaptive max pooling along the time dimension.
+
+      :param x: Input tensor of shape ``(B, T, F)``.
+      :type x: torch.Tensor
+      :param time_dim: Target time dimension.
+      :type time_dim: int
+      :param mask: Validity mask of shape ``(B, T)``.
+                   True = valid.
+      :type mask: torch.BoolTensor, optional
+
+      :returns:
+
+                Pooled tensor of shape
+                    ``(B, time_dim, F)`` and updated mask of shape ``(B, time_dim)``.
+      :rtype: tuple[torch.Tensor, torch.Tensor]
+
+
+
+.. py:class:: AdaptiveAvgPooling(*args: Any, **kwargs: Any)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Temporal aligner via adaptive average pooling.
+
+   Resizes the time dimension of a tensor to ``time_dim`` using
+   ``F.adaptive_avg_pool1d``. Masked positions contribute zero to the average
+   and the output is renormalized by the fraction of valid input positions in
+   each output bin.
+
+   Initialize internal Module state, shared by both nn.Module and ScriptModule.
+
+
+   .. py:method:: forward(x: torch.Tensor, time_dim: int, mask: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor]
+
+      Apply adaptive average pooling along the time dimension.
+
+      :param x: Input tensor of shape ``(B, T, F)``.
+      :type x: torch.Tensor
+      :param time_dim: Target time dimension.
+      :type time_dim: int
+      :param mask: Validity mask of shape ``(B, T)``.
+                   True = valid.
+      :type mask: torch.BoolTensor, optional
+
+      :returns:
+
+                Pooled tensor of shape
+                    ``(B, time_dim, F)`` and updated mask of shape ``(B, time_dim)``.
+      :rtype: tuple[torch.Tensor, torch.Tensor]
+
+
+
+.. py:class:: LastTimestamp(*args: Any, **kwargs: Any)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Temporal reducer that extracts the last valid timestamp.
+
+   If a mask is provided, selects the feature vector at the last ``True``
+   position for each sample. Fully-masked samples (all ``False``) return
+   a zero vector.
+
+   Initialize internal Module state, shared by both nn.Module and ScriptModule.
+
+
+   .. py:method:: forward(x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor
+
+      Extract the last valid timestamp.
+
+      :param x: Input tensor of shape ``(B, T, F)``.
+      :type x: torch.Tensor
+      :param mask: Validity mask of shape ``(B, T)``.
+                   If ``None``, the final timestep is selected for all samples.
+      :type mask: torch.BoolTensor, optional
+
+      :returns: Output tensor of shape ``(B, F)``.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: GlobalAvgPooling(*args: Any, **kwargs: Any)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Temporal reducer via masked global average pooling.
+
+   Computes the mean over valid (unmasked) timesteps. If no mask is provided,
+   averages over all timesteps.
+
+   Initialize internal Module state, shared by both nn.Module and ScriptModule.
+
+
+   .. py:method:: forward(x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor
+
+      Apply global average pooling.
+
+      :param x: Input tensor of shape ``(B, T, F)``.
+      :type x: torch.Tensor
+      :param mask: Validity mask of shape ``(B, T)``.
+                   True = valid. If ``None``, all positions are treated as valid.
+      :type mask: torch.BoolTensor, optional
+
+      :returns: Pooled output of shape ``(B, F)``.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: GlobalMaxPooling(*args: Any, **kwargs: Any)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Temporal reducer via masked global max pooling.
+
+   Computes the max over valid (unmasked) timesteps. Masked positions are
+   filled with ``-inf`` before the max, and fully-masked samples return zero.
+
+   Initialize internal Module state, shared by both nn.Module and ScriptModule.
+
+
+   .. py:method:: forward(x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor
+
+      Apply global max pooling.
+
+      :param x: Input tensor of shape ``(B, T, F)``.
+      :type x: torch.Tensor
+      :param mask: Validity mask of shape ``(B, T)``.
+                   True = valid. If ``None``, all positions are treated as valid.
+      :type mask: torch.BoolTensor, optional
+
+      :returns: Pooled output of shape ``(B, F)``.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: AttentionPooling(d_model: int)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Temporal reducer via learned attention-weighted pooling.
+
+   Learns a scalar attention score per timestep and computes a weighted sum
+   of the input features. Masked positions receive ``-inf`` before the softmax
+   so their weight is zero. Fully-masked samples return a zero vector.
+
+   :param d_model: Input feature dimensionality.
+   :type d_model: int
+
+   Initialize AttentionPooling.
+
+
+   .. py:method:: forward(x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor
+
+      Apply attention-weighted pooling.
+
+      :param x: Input tensor of shape ``(B, T, F)``.
+      :type x: torch.Tensor
+      :param mask: Validity mask of shape ``(B, T)``.
+                   True = valid.
+      :type mask: torch.BoolTensor, optional
+
+      :returns: Pooled output of shape ``(B, F)``.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: TRM(d_model: int, reducer: str)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Time Reduce Module: aggregates the time dimension of a sequence tensor.
+
+   Transforms ``(B, T, F)`` → ``(B, F)`` using a configurable pooling strategy.
+
+   :param d_model: Input feature dimensionality. Required for ``"attentionpool"``;
+                   ignored by ``"gap"``, ``"gmp"``, and ``"last"``.
+   :type d_model: int
+   :param reducer: Pooling strategy. One of ``"attentionpool"``, ``"gmp"``,
+                   ``"gap"``, ``"last"``.
+   :type reducer: str
+
+   Initialize TRM.
+
+
+   .. py:method:: forward(x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor
+
+      Reduce the time dimension.
+
+      :param x: Input of shape ``(B, T, F)``.
+      :type x: torch.Tensor
+      :param mask: Validity mask of shape ``(B, T)``. True = valid.
+      :type mask: torch.Tensor, optional
+
+      :returns: Reduced output of shape ``(B, F)``.
+      :rtype: torch.Tensor
+
+
+
+   .. py:method:: apply_to_list(x_list: list[torch.Tensor], mask_list: list[torch.Tensor | None]) -> list[torch.Tensor]
+
+      Apply time reduction independently to each tensor in a list.
+
+      :param x_list: List of tensors, each of shape ``(B, T, F)``.
+      :type x_list: list[torch.Tensor]
+      :param mask_list: Corresponding masks, each of shape ``(B, T)``.
+      :type mask_list: list[torch.Tensor | None]
+
+      :returns: List of reduced tensors, each of shape ``(B, F)``.
+      :rtype: list[torch.Tensor]
+
+
+
+.. py:class:: TAM(input_dim: int, output_dim: int, aligner: str, time_dim: int, num_layers: int = 6, num_heads: int = 8, attention_config: linmult.core.attention.AttentionConfig | None = None, dropout_pe: float = 0.0, dropout_ffn: float = 0.1, dropout_out: float = 0.1, name: str = '')
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Time Align Module: aligns the time dimensions of multiple tensors.
+
+   Transforms a list of ``(B, T_i, F)`` tensors to a single fused tensor
+   ``(B, time_dim, tgt_dim)`` by pooling/padding each sequence to a common
+   ``time_dim``, concatenating along the feature axis, processing with a
+   transformer, and projecting to ``tgt_dim``.
+
+   :param input_dim: Concatenated input dimensionality (sum of feature dims across modalities).
+   :type input_dim: int
+   :param output_dim: Output feature dimensionality after projection.
+   :type output_dim: int
+   :param aligner: Temporal alignment strategy. One of ``"aap"``, ``"amp"``,
+                   ``"padding"``.
+   :type aligner: str
+   :param time_dim: Target time dimension after alignment.
+   :type time_dim: int
+   :param dropout_out: Dropout in the output projector. Defaults to ``0.1``.
+   :type dropout_out: float
+   :param num_layers: Depth of the internal transformer encoder. Defaults to ``6``.
+   :type num_layers: int
+   :param num_heads: Number of attention heads in the internal encoder. Defaults to ``8``.
+   :type num_heads: int
+   :param attention_config: Attention type and parameters for the
+                            internal encoder. Defaults to ``AttentionConfig()`` (linear attention).
+   :type attention_config: AttentionConfig, optional
+   :param dropout_pe: Positional-encoding dropout for the internal encoder.
+                      Defaults to ``0.0``.
+   :type dropout_pe: float
+   :param dropout_ffn: FFN dropout for the internal encoder. Defaults to ``0.1``.
+   :type dropout_ffn: float
+   :param name: Module name shown in ``repr``. Defaults to ``""``.
+   :type name: str
+
+   Initialize TAM.
+
+
+   .. py:method:: extra_repr() -> str
+
+      Return the module name for identification in repr output.
+
+
+
+   .. py:method:: forward(x_list: list[torch.Tensor], mask_list: list[torch.Tensor | None]) -> tuple[torch.Tensor, torch.Tensor]
+
+      Align, fuse, and project multiple sequences.
+
+      :param x_list: Input tensors, each of shape ``(B, T_i, F)``.
+      :type x_list: list[torch.Tensor]
+      :param mask_list: Corresponding masks, each of
+                        shape ``(B, T_i)`` or ``None`` (treated as all-valid).
+      :type mask_list: list[torch.BoolTensor | None]
+
+      :returns:
+
+                Aligned tensor of shape
+                    ``(B, time_dim, output_dim)`` and validity mask of shape ``(B, time_dim)``.
+      :rtype: tuple[torch.Tensor, torch.Tensor]
+
+
+

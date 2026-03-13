@@ -1,0 +1,355 @@
+linmult.core.config
+===================
+
+.. py:module:: linmult.core.config
+
+.. autoapi-nested-parse::
+
+   Typed configuration dataclasses for LinT and LinMulT.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   linmult.core.config.HeadConfig
+   linmult.core.config.LinTConfig
+   linmult.core.config.LinMulTConfig
+
+
+Module Contents
+---------------
+
+.. py:class:: HeadConfig
+
+   Configuration for one output head.
+
+   :param type: Head type. One of ``"sequence_aggregation"``, ``"sequence"``,
+                ``"vector"``, ``"simple"``, ``"upsample"``, ``"downsample"``.
+   :type type: str
+   :param output_dim: Output feature dimensionality.
+   :type output_dim: int
+   :param name: Head name used as key in the output dict. Defaults to ``""``
+                (resolved to the head class name at construction time).
+   :type name: str
+   :param norm: Normalisation type for heads that use it. One of ``"bn"``, ``"in"``.
+                Defaults to ``"bn"``.
+   :type norm: str
+   :param pooling: Pooling strategy. One of ``"gap"``, ``"gmp"``,
+                   ``"attentionpool"``, or ``None`` (no pooling, e.g. for :class:`SimpleHead`
+                   without temporal reduction). Defaults to ``None`` (preserve sequence).
+   :type pooling: str | None
+   :param hidden_dim: Hidden projection size. Defaults to ``256``.
+   :type hidden_dim: int
+   :param dropout: Dropout probability used inside the head. Defaults to ``0.1``.
+   :type dropout: float
+   :param input_time_dim: Source time dimension for
+                          :class:`UpsampleHead` / :class:`DownsampleHead`. Defaults to ``None``.
+   :type input_time_dim: int | None
+   :param output_time_dim: Target time dimension for
+                           :class:`UpsampleHead` / :class:`DownsampleHead`. Defaults to ``None``.
+   :type output_time_dim: int | None
+
+
+   .. py:method:: from_dict(d: dict[str, Any]) -> HeadConfig
+      :classmethod:
+
+
+      Construct from a plain dict, ignoring unknown keys.
+
+      :param d: Dictionary of head configuration values.
+      :type d: dict
+
+      :returns: A new :class:`HeadConfig` instance.
+      :rtype: HeadConfig
+
+
+
+.. py:class:: LinTConfig
+
+   Configuration for :class:`LinT` (unimodal linear-complexity transformer).
+
+   **Required**
+
+   :param input_feature_dim: Input feature dimensionality.
+   :type input_feature_dim: int
+
+   **Identity**
+
+   :param name: Model name shown in ``repr``. Defaults to ``""``.
+   :type name: str
+
+   **Core**
+
+   :param d_model: Internal embedding dimension. Defaults to ``40``.
+   :type d_model: int
+   :param num_heads: Number of attention heads. Defaults to ``8``.
+   :type num_heads: int
+   :param cmt_num_layers: Self-attention encoder depth. Defaults to ``6``.
+   :type cmt_num_layers: int
+
+   **Attention**
+
+   :param attention_type: Attention mechanism. One of ``"linear"`` (default),
+                          ``"performer"``, ``"flash"``, ``"softmax"``, ``"bigbird"``, ``"mha"``.
+   :type attention_type: str
+   :param flash_query_key_dim: Scoring dimension for ``"flash"`` (GAU).
+                               Defaults to ``None`` (computed as ``max(d_model // 2, 16)``).
+   :type flash_query_key_dim: int | None
+   :param performer_num_random_features: Random feature count for
+                                         ``"performer"``. Defaults to ``None`` (computed as ``max(head_dim * 4, 32)``).
+   :type performer_num_random_features: int | None
+   :param bigbird_block_size: Local block size for ``"bigbird"``. Defaults to ``64``.
+   :type bigbird_block_size: int
+   :param bigbird_num_global_tokens: Global tokens for ``"bigbird"``. Defaults to ``16``.
+   :type bigbird_num_global_tokens: int
+   :param bigbird_num_random_tokens: Random tokens for ``"bigbird"``. Defaults to ``10``.
+   :type bigbird_num_random_tokens: int
+
+   **Dropout**
+
+   :param dropout_input: Dropout on input before projection. Defaults to ``0.0``.
+   :type dropout_input: float
+   :param dropout_output: FFN-fusion output dropout. Defaults to ``0.0``.
+   :type dropout_output: float
+   :param dropout_pe: Dropout after positional encoding. Defaults to ``0.0``.
+   :type dropout_pe: float
+   :param dropout_ffn: Dropout in transformer FFN. Defaults to ``0.1``.
+   :type dropout_ffn: float
+   :param dropout_attention: Attention-weight dropout. Defaults to ``0.0``.
+   :type dropout_attention: float
+
+   **TRM**
+
+   :param time_dim_reducer: Collapse ``(B, T, F)`` → ``(B, F)`` before
+                            heads. One of ``"attentionpool"``, ``"gap"``, ``"gmp"``, ``"last"``, or
+                            ``None`` (no reduction). Defaults to ``None``.
+   :type time_dim_reducer: str | None
+
+   **Optional modules**
+
+   :param add_module_ffn_fusion: FFN + residual block after the encoder.
+                                 Defaults to ``False``.
+   :type add_module_ffn_fusion: bool
+
+   **Heads**
+
+   :param heads: Output head configurations. Plain dicts
+                 are automatically coerced to :class:`HeadConfig`. Defaults to ``[]``.
+   :type heads: list[HeadConfig | dict]
+
+   **Special handling**
+
+   :param special_handling: Modality-specific input handling
+                            (e.g. weighted-sum of transformer layers). Defaults to ``{}``.
+   :type special_handling: dict[str, Any]
+
+
+   .. py:method:: __post_init__() -> None
+
+      Coerce head dicts to :class:`HeadConfig` instances.
+
+
+
+   .. py:method:: from_dict(d: dict[str, Any]) -> LinTConfig
+      :classmethod:
+
+
+      Construct from a plain dict (e.g. loaded from YAML), ignoring unknown keys.
+
+      :param d: Dictionary of configuration values.
+      :type d: dict
+
+      :returns: A new :class:`LinTConfig` instance.
+      :rtype: LinTConfig
+
+
+
+   .. py:method:: from_yaml(path: str | pathlib.Path) -> LinTConfig
+      :classmethod:
+
+
+      Load a :class:`LinTConfig` from a YAML file.
+
+      :param path: Path to the YAML configuration file.
+      :type path: str | Path
+
+      :returns: A new :class:`LinTConfig` instance.
+      :rtype: LinTConfig
+
+
+
+   .. py:method:: build_attention_config() -> linmult.core.attention.AttentionConfig
+
+      Build an :class:`~linmult.core.attention.AttentionConfig` from this config.
+
+      :returns: Attention configuration ready for use in model construction.
+      :rtype: AttentionConfig
+
+
+
+.. py:class:: LinMulTConfig
+
+   Configuration for :class:`LinMulT` (multimodal linear-complexity transformer).
+
+   **Required**
+
+   :param input_feature_dim: Input feature dimensionality per modality.
+                             Must have at least 2 entries.
+   :type input_feature_dim: list[int]
+
+   **Identity**
+
+   :param name: Model name shown in ``repr``. Defaults to ``""``.
+   :type name: str
+
+   **Core**
+
+   :param d_model: Internal embedding dimension. Defaults to ``40``.
+   :type d_model: int
+   :param num_heads: Number of attention heads. Defaults to ``8``.
+   :type num_heads: int
+   :param cmt_num_layers: Cross-modal transformer (CMT) encoder depth. Defaults to ``6``.
+   :type cmt_num_layers: int
+   :param branch_sat_num_layers: Per-branch self-attention encoder depth. Defaults to ``6``.
+   :type branch_sat_num_layers: int
+
+   **Attention**
+
+   :param attention_type: Attention mechanism. One of ``"linear"`` (default),
+                          ``"performer"``, ``"flash"``, ``"softmax"``, ``"bigbird"``, ``"mha"``.
+   :type attention_type: str
+   :param flash_query_key_dim: Scoring dimension for ``"flash"`` (GAU).
+                               Defaults to ``None`` (computed as ``max(d_model // 2, 16)``).
+   :type flash_query_key_dim: int | None
+   :param performer_num_random_features: Random feature count for
+                                         ``"performer"``. Defaults to ``None`` (computed as ``max(head_dim * 4, 32)``).
+   :type performer_num_random_features: int | None
+   :param bigbird_block_size: Local block size for ``"bigbird"``. Defaults to ``64``.
+   :type bigbird_block_size: int
+   :param bigbird_num_global_tokens: Global tokens for ``"bigbird"``. Defaults to ``16``.
+   :type bigbird_num_global_tokens: int
+   :param bigbird_num_random_tokens: Random tokens for ``"bigbird"``. Defaults to ``10``.
+   :type bigbird_num_random_tokens: int
+
+   **Dropout**
+
+   :param dropout_input: Dropout on input before projection. Defaults to ``0.0``.
+   :type dropout_input: float
+   :param dropout_output: FFN-fusion output dropout. Defaults to ``0.0``.
+   :type dropout_output: float
+   :param dropout_pe: Dropout after positional encoding. Defaults to ``0.0``.
+   :type dropout_pe: float
+   :param dropout_ffn: Dropout in transformer FFN. Defaults to ``0.1``.
+   :type dropout_ffn: float
+   :param dropout_attention: Attention-weight dropout. Defaults to ``0.0``.
+   :type dropout_attention: float
+   :param dropout_tam: Dropout inside the TAM projector. Defaults to ``0.1``.
+   :type dropout_tam: float
+
+   **Unimodal self-attention (optional)**
+
+   :param add_module_unimodal_sat: Per-modality self-attention transformer (SAT)
+                                   before cross-modal layers. Defaults to ``False``.
+   :type add_module_unimodal_sat: bool
+   :param unimodal_sat_num_layers: Unimodal SAT encoder depth. Defaults to ``6``.
+   :type unimodal_sat_num_layers: int
+
+   **Multimodal signal via TAM (optional)**
+
+   :param add_module_multimodal_signal: Prepend a TAM-fused cross-modal summary
+                                        to each branch. Requires ``tam_time_dim``. Defaults to ``False``.
+   :type add_module_multimodal_signal: bool
+   :param mms_num_layers: Encoder depth inside the MMS TAM. Defaults to ``6``.
+   :type mms_num_layers: int
+   :param tam_aligner: Temporal alignment strategy. One of ``"aap"``,
+                       ``"amp"``, ``"padding"``. Required when either TAM module is enabled.
+                       Defaults to ``None``.
+   :type tam_aligner: str | None
+   :param tam_time_dim: Target time dimension after TAM alignment.
+                        Required when either TAM module is enabled. Defaults to ``None``.
+   :type tam_time_dim: int | None
+
+   **TRM**
+
+   :param time_dim_reducer: Collapse ``(B, T, F)`` → ``(B, F)`` before
+                            heads. One of ``"attentionpool"``, ``"gap"``, ``"gmp"``, ``"last"``, or
+                            ``None`` (no reduction). Defaults to ``None``.
+   :type time_dim_reducer: str | None
+
+   **Fusion (optional)**
+
+   :param add_module_tam_fusion: TAM-based fusion after cross-modal branches.
+                                 Requires ``tam_time_dim``. Defaults to ``False``.
+   :type add_module_tam_fusion: bool
+   :param fusion_num_layers: Encoder depth inside the TAM fusion module. Defaults to ``6``.
+   :type fusion_num_layers: int
+   :param add_module_sat_fusion: Self-attention transformer on the fused representation.
+                                 Defaults to ``False``.
+   :type add_module_sat_fusion: bool
+   :param fusion_sat_num_layers: Fusion SAT encoder depth. Defaults to ``6``.
+   :type fusion_sat_num_layers: int
+   :param add_module_ffn_fusion: FFN + residual block after fusion. Defaults to ``False``.
+   :type add_module_ffn_fusion: bool
+
+   **Heads**
+
+   :param heads: Output head configurations. Plain dicts
+                 are automatically coerced to :class:`HeadConfig`. Defaults to ``[]``.
+   :type heads: list[HeadConfig | dict]
+   :param auxiliary_heads: Per-branch auxiliary head configs.
+                           Plain dicts are automatically coerced to :class:`HeadConfig`. Defaults to ``[]``.
+   :type auxiliary_heads: list[HeadConfig | dict]
+
+   **Special handling**
+
+   :param special_handling: Modality-specific input handling
+                            (e.g. weighted-sum of transformer layers). Defaults to ``{}``.
+   :type special_handling: dict[str, Any]
+
+
+   .. py:method:: __post_init__() -> None
+
+      Coerce head dicts and validate TAM-dependent options.
+
+
+
+   .. py:method:: from_dict(d: dict[str, Any]) -> LinMulTConfig
+      :classmethod:
+
+
+      Construct from a plain dict (e.g. loaded from YAML), ignoring unknown keys.
+
+      :param d: Dictionary of configuration values.
+      :type d: dict
+
+      :returns: A new :class:`LinMulTConfig` instance.
+      :rtype: LinMulTConfig
+
+
+
+   .. py:method:: from_yaml(path: str | pathlib.Path) -> LinMulTConfig
+      :classmethod:
+
+
+      Load a :class:`LinMulTConfig` from a YAML file.
+
+      :param path: Path to the YAML configuration file.
+      :type path: str | Path
+
+      :returns: A new :class:`LinMulTConfig` instance.
+      :rtype: LinMulTConfig
+
+
+
+   .. py:method:: build_attention_config() -> linmult.core.attention.AttentionConfig
+
+      Build an :class:`~linmult.core.attention.AttentionConfig` from this config.
+
+      :returns: Attention configuration ready for use in model construction.
+      :rtype: AttentionConfig
+
+
+

@@ -1,0 +1,72 @@
+linmult.models.LinT
+===================
+
+.. py:module:: linmult.models.LinT
+
+.. autoapi-nested-parse::
+
+   LinT: unimodal linear-complexity transformer.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   linmult.models.LinT.LinT
+
+
+Module Contents
+---------------
+
+.. py:class:: LinT(config: linmult.core.config.LinTConfig | str | pathlib.Path)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Linear-complexity Transformer for a single input modality.
+
+   Processes one time-series input through a projection + self-attention
+   pipeline and applies configurable output heads.
+
+   :param config: Configuration object or path to a YAML file.
+   :type config: LinTConfig | str | Path
+
+   Initialize LinT.
+
+   :param config: Configuration object or path to a YAML
+                  file. When a path is given the file is loaded with
+                  :meth:`LinTConfig.from_yaml`.
+   :type config: LinTConfig | str | Path
+
+
+   .. py:method:: extra_repr() -> str
+
+      Return the model name for identification in repr output.
+
+
+
+   .. py:method:: forward(x: torch.Tensor, mask: torch.Tensor | None = None, name: str | None = None) -> dict[str, torch.Tensor]
+
+      Run the forward pass.
+
+      :param x: Input of shape ``(B, T, F)``. May also be a
+                single-element list ``[tensor]``.
+      :type x: torch.Tensor
+      :param mask: Bool mask of shape ``(B, T)``.
+                   True = valid timestep. A fully-False mask is treated as ``None``.
+      :type mask: torch.Tensor, optional
+      :param name: Key used for special-handling lookup (e.g.
+                   weighted-sum of layer activations). May also be a single-element list.
+      :type name: str, optional
+
+      :returns:
+
+                Mapping from head name to output tensor.
+                    Shape is ``(B, output_dim)`` when ``time_dim_reducer`` is set,
+                    otherwise ``(B, T, output_dim)``.
+      :rtype: dict[str, torch.Tensor]
+
+
+

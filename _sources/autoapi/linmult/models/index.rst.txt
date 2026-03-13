@@ -1,0 +1,16 @@
+linmult.models
+==============
+
+.. py:module:: linmult.models
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/linmult/models/LinMulT/index
+   /autoapi/linmult/models/LinT/index
+
+

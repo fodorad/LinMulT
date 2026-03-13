@@ -1,0 +1,82 @@
+linmult.models.LinMulT
+======================
+
+.. py:module:: linmult.models.LinMulT
+
+.. autoapi-nested-parse::
+
+   LinMulT: multimodal linear-complexity transformer.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   linmult.models.LinMulT.LinMulT
+
+
+Module Contents
+---------------
+
+.. py:class:: LinMulT(config: linmult.core.config.LinMulTConfig | str | pathlib.Path)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Multimodal Linear-complexity Transformer.
+
+   Processes 2 or more time-series modalities through a cross-modal attention
+   pipeline and applies configurable output heads.
+
+   :param config: Configuration object or path to a YAML
+                  file.  When a path is given the file is loaded with
+                  :meth:`LinMulTConfig.from_yaml`.
+   :type config: LinMulTConfig | str | Path
+
+   Initialize LinMulT.
+
+   :param config: Configuration object or path to a YAML
+                  file. When a path is given the file is loaded with
+                  :meth:`LinMulTConfig.from_yaml`.
+   :type config: LinMulTConfig | str | Path
+
+   :raises ValueError: If fewer than 2 input modalities are provided.
+
+
+   .. py:method:: extra_repr() -> str
+
+      Return the model name for identification in repr output.
+
+
+
+   .. py:method:: forward(inputs: list[torch.Tensor], masks: list[torch.Tensor] | None = None, names: list[str] | None = None) -> dict[str, torch.Tensor] | tuple[dict[str, torch.Tensor], list[dict[str, torch.Tensor]] | None]
+
+      Run the full LinMulT forward pass.
+
+      :param inputs: One tensor per modality, each of shape
+                     ``(B, T, F)`` or ``(B, N, T, F)`` for special weighted-sum inputs.
+      :type inputs: list[torch.Tensor]
+      :param masks: Boolean mask per modality, each
+                    of shape ``(B, T)``. ``True`` = valid timestep. ``None`` entries and
+                    fully-valid masks are treated as no mask. Defaults to ``None``.
+      :type masks: list[torch.Tensor], optional
+      :param names: Feature names for special aggregation
+                    (e.g. weighted-sum over transformer layers). Defaults to ``None``.
+      :type names: list[str], optional
+
+      :returns:
+
+                Output dict mapping head names to predictions.
+                    Each value has shape ``(B, output_dim)`` or ``(B, T, output_dim)``
+                    depending on the head type.
+                tuple[dict, list[dict]]: When ``auxiliary_heads`` are configured, a tuple
+                    where the first element is the primary output dict and the second
+                    element is a list of per-branch auxiliary prediction dicts.
+      :rtype: dict[str, torch.Tensor]
+
+      :raises ValueError: If the number of input tensors does not match ``n_modalities``.
+
+
+

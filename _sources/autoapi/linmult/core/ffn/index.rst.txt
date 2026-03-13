@@ -1,0 +1,52 @@
+linmult.core.ffn
+================
+
+.. py:module:: linmult.core.ffn
+
+.. autoapi-nested-parse::
+
+   FFN residual block: two linear layers with GELU activation and residual connection.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   linmult.core.ffn.FFNResidual
+
+
+Module Contents
+---------------
+
+.. py:class:: FFNResidual(dim: int, dropout: float = 0.0)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Two-layer FFN with GELU activation, dropout, and residual connection.
+
+   Computes ``x + fc2(dropout(gelu(fc1(x))))``.
+
+   :param dim: Input and output feature dimension.
+   :type dim: int
+   :param dropout: Dropout probability applied after the first linear layer.
+                   Defaults to ``0.0``.
+   :type dropout: float
+
+   Initialize internal Module state, shared by both nn.Module and ScriptModule.
+
+
+   .. py:method:: forward(x: torch.Tensor) -> torch.Tensor
+
+      Apply FFN + residual.
+
+      :param x: Input tensor of any shape with last dim ``dim``.
+      :type x: torch.Tensor
+
+      :returns: Same shape as ``x``.
+      :rtype: torch.Tensor
+
+
+

@@ -1,0 +1,26 @@
+linmult.core
+============
+
+.. py:module:: linmult.core
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/linmult/core/attention/index
+   /autoapi/linmult/core/branch/index
+   /autoapi/linmult/core/config/index
+   /autoapi/linmult/core/ffn/index
+   /autoapi/linmult/core/fusion/index
+   /autoapi/linmult/core/heads/index
+   /autoapi/linmult/core/norm/index
+   /autoapi/linmult/core/pe/index
+   /autoapi/linmult/core/projection/index
+   /autoapi/linmult/core/temporal/index
+   /autoapi/linmult/core/transformer/index
+   /autoapi/linmult/core/utils/index
+
+
