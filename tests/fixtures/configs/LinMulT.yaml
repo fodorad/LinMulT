@@ -1,0 +1,53 @@
+# input params
+input_feature_dim:
+  - 25
+  - 41
+  - 768
+
+special_handling:
+  wavlm_baseplus:
+    type: weighted_sum
+    start_layer: 6
+    end_layer: 12
+
+# CMT and SAT transformer params
+d_model: 40
+num_heads: 8
+cmt_num_layers: 6
+attention_type: linear # bigbird, softmax, mha
+
+## bigbird attention params - ignored otherwise
+# bigbird_block_size: 64
+# bigbird_num_global_tokens: 16
+# bigbird_num_random_tokens: 10
+# dropout_attention: 0.
+
+dropout_input: 0
+dropout_ffn: 0.1
+dropout_output: 0
+
+# LinMulT architecture params
+branch_sat_num_layers: 3
+
+tam_aligner: aap
+tam_time_dim: 300
+
+add_module_multimodal_signal: True
+mms_num_layers: 3
+add_module_tam_fusion: True
+
+# LinMult task-specific output heads
+heads:
+  - name: head_0
+    type: sequence_aggregation
+    norm: bn
+    pooling: gap
+    hidden_dim: 256
+    dropout: 0.1
+    output_dim: 7
+  - name: head_1
+    type: sequence
+    norm: bn
+    hidden_dim: 256
+    dropout: 0.1
+    output_dim: 2

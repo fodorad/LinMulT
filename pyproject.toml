@@ -1,27 +1,93 @@
 [build-system]
-requires = ["hatchling", "hatch-requirements-txt"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "linmult"
-version = "1.8.1"
+dynamic = ["version"]
 description = "General-purpose Multimodal Transformer with Linear Complexity Attention Mechanism."
 keywords = ["multimodal", "transformer", "linear-complexity attention"]
 authors = [
-  { name = "fodorad", email = "foauaai@inf.elte.hu" },
+  { name = "fodorad", email = "fodorad201@gmail.com" },
 ]
 readme = {"file" = "README.md", "content-type" = "text/markdown"}
-requires-python = ">=3.11"
-dynamic = ["dependencies"]
+requires-python = ">=3.12"
+license = "MIT"
 classifiers = [
-  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
+]
+dependencies = [
+  "pyyaml",
+  "torch>=2.10",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff",
+  "ty",
+  "coverage",
+  "pre-commit",
+]
+docs = [
+  "sphinx>=8.0",
+  "furo",
+  "sphinx-autoapi",
+  "sphinx-autobuild",
+  "myst-parser",
+]
+examples = [
+  "jupyter",
+  "nbconvert",
+  "gdown",
 ]
 
 [project.urls]
-Documentation = "https://github.com/fodorad/linmult#readme"
+Documentation = "https://fodorad.github.io/linmult/"
 Issues = "https://github.com/fodorad/linmult/issues"
 Source = "https://github.com/fodorad/linmult"
 
-[tool.hatch.metadata.hooks.requirements_txt]
-files = ["requirements.txt"]
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["linmult"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "TCH", "ARG", "PIE", "D"]
+ignore = ["D107", "D203", "D213"]
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["D104"]
+"tests/**/test_*.py" = ["D", "S", "ARG"]
+"examples/**/*.ipynb" = ["D"]
+"docs/conf.py" = ["D", "ARG"]
+
+[tool.coverage.run]
+source = ["linmult"]
+omit = ["*/tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+skip_covered = false
+
+[tool.coverage.html]
+directory = "coverage_html"
+
+[tool.ty.environment]
+python-version = "3.12"

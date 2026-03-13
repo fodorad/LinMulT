@@ -1,412 +1,175 @@
-# LinMulT
+<div align="center">
 
-[![python](https://img.shields.io/badge/Python-3.11-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
-[![pytorch](https://img.shields.io/badge/PyTorch-2.5.1-EE4C2C.svg?style=flat&logo=pytorch)](https://pytorch.org)
+<img src="docs/assets/logo.svg" alt="LinMulT" width="260"/>
 
-General-purpose Multimodal Transformer with Linear-Complexity Attention Mechanism.
+<br/>
 
-# Setup
+**General-purpose Multimodal Transformer with Linear-Complexity Attention**
 
-### Install package from PyPI
+[![CI](https://github.com/fodorad/linmult/workflows/CI/badge.svg)](https://github.com/fodorad/linmult/actions)
+[![Coverage](https://codecov.io/gh/fodorad/linmult/branch/main/graph/badge.svg)](https://codecov.io/gh/fodorad/linmult)
+[![Docs](https://img.shields.io/badge/docs-online-blue?logo=githubpages)](https://fodorad.github.io/linmult/)
+[![PyPI](https://img.shields.io/pypi/v/linmult?color=orange)](https://pypi.org/project/linmult/)
+[![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.10%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000)](https://github.com/astral-sh/ruff)
+[![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
-```
+</div>
+
+---
+
+LinMulT is a modular Transformer library designed for **multimodal sequence modelling**. It handles variable-length inputs across any number of modalities, supports missing-modality scenarios, and offers six attention variants ranging from O(N²) softmax to O(N·s) gated linear attention; all behind a single config file.
+
+## Features
+
+| | |
+|---|---|
+| **Multiple modalities** | 1–N input sequences with independent lengths and feature dims |
+| **Standard attention** | `softmax` — quadratic complexity for baselines and ablations |
+| **Efficient attention** | `linear`, `performer`, `flash`, `bigbird` — sub-quadratic complexity |
+| **Flexible heads** | sequence, aggregated, upsample, downsample — mix freely |
+| **Missing modalities** | zero-mask a modality; model handles it gracefully |
+| **Config-driven** | dict or YAML; no subclassing required |
+
+---
+
+## Installation
+
+```bash
 pip install linmult
 ```
 
-### Install package for development
+For development:
 
+```bash
+git clone https://github.com/fodorad/linmult
+cd linmult
+pip install -e ".[dev,docs]"
+make check
 ```
-git clone https://github.com/fodorad/LinMulT
-cd LinMulT
-pip install -e .
-pip install -U -r requirements.txt
-python -m unittest
-```
 
-# Quick start
+---
 
-The following use cases demonstrate some basic, then more advanced functionality using the LinT and LinMulT models. For better coverage of configurations, refer to the test cases provided in the **linmult/test** directory.
+## Quick start
 
-## LinT: linear-complexity transformer for a single input sequence
+### LinT — single-modality transformer
 
-### Input sequence without mask, single output head
-
-```
+```python
 import torch
 from linmult import LinT
 
-batch_size = 8
-time_dim_1 = 1500
-feature_dim_1 = 25
-output_dim_1 = 5
+x = torch.rand(8, 1500, 25)  # (batch, time, features)
 
-x = torch.rand((batch_size, time_dim_1, feature_dim_1))
-
-model = LinT(
-    {
-        'input_feature_dim': feature_dim_1,
-        'heads': [{'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1}]
-    }
-)
-output_heads = model(x)
-assert output_heads['head_0'].shape == (batch_size, time_dim_1, output_dim_1)
+model = LinT({
+    'input_feature_dim': 25,
+    'heads': [{'name': 'out', 'type': 'simple', 'output_dim': 5}],
+    'time_dim_reducer': 'attentionpool',  # aggregate over time
+})
+result = model(x)
+assert result['out'].shape == (8, 5)
 ```
 
-### Input sequence without mask, single aggregated output head
+### LinMulT — multimodal transformer
 
-Note, that the time dimension aggregation is applied within the model.
-
-```
-import torch
-from linmult import LinT
-
-batch_size = 8
-time_dim_1 = 1500
-feature_dim_1 = 25
-output_dim_1 = 5
-
-x = torch.rand((batch_size, time_dim_1, feature_dim_1))
-
-model = LinT(
-    {
-        'input_feature_dim': feature_dim_1,
-        'heads': [{'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1}],
-        'time_dim_reducer': 'attentionpool'
-    }
-)
-output_heads = model(x)
-assert output_heads['head_0'].shape == (batch_size, output_dim_1)
-```
-
-### Input sequence without mask, single aggregated output head
-
-Note, that the time dimension aggregation is applied to the model outputs.
-
-```
-import torch
-from linmult import LinT, apply_logit_aggregation
-
-batch_size = 8
-time_dim_1 = 1500
-feature_dim_1 = 25
-output_dim_1 = 5
-
-x = torch.rand((batch_size, time_dim_1, feature_dim_1))
-
-model = LinT(
-    {
-        'input_feature_dim': feature_dim_1,
-        'heads': [{'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1}]
-    }
-)
-output_heads = model(x)
-assert output_heads['head_0'].shape == (batch_size, time_dim_1, output_dim_1)
-
-output = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
-assert output.shape == (batch_size, output_dim_1)
-```
-
-### Input sequence with a mask, multiple aggregated output head
-
-```
-import torch
-from linmult import LinT, apply_logit_aggregation
-
-batch_size = 8
-time_dim_1 = 50
-feature_dim_1 = 25
-output_dim_1 = 5
-output_dim_2 = 6
-
-x = torch.rand((batch_size, time_dim_1, feature_dim_1))
-mask = (torch.arange(x.size(1)).unsqueeze(0) < x.size(1) - 10).expand(batch_size, -1).bool() # Shape: (batch_size, time_dim_1) 
-
-model = LinT(
-    {
-        'input_feature_dim': feature_dim_1,
-        'heads': [
-            {'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1},
-            {'name': 'head_1', 'type': 'simple', 'output_dim': output_dim_2}
-        ]
-    }
-)
-output_heads = model(x, mask)
-assert output_heads['head_0'].shape == (batch_size, time_dim_1, output_dim_1)
-assert output_heads['head_1'].shape == (batch_size, time_dim_1, output_dim_2)
-
-output_0 = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
-output_1 = apply_logit_aggregation(x=output_heads['head_1'], method='meanpooling')
-assert output_0.shape == (batch_size, output_dim_1)
-assert output_1.shape == (batch_size, output_dim_2)
-```
-
-### Input sequence with a mask, a sequence and an aggregated output head 
-
-```
-import torch
-from linmult import LinT, apply_logit_aggregation
-
-batch_size = 8
-time_dim_1 = 50
-feature_dim_1 = 25
-output_dim_1 = 5
-output_dim_2 = 6
-
-x = torch.rand((batch_size, time_dim_1, feature_dim_1))
-mask = (torch.arange(x.size(1)).unsqueeze(0) < x.size(1) - 10).expand(batch_size, -1).bool() # Shape: (batch_size, time_dim_1) 
-
-model = LinT(
-    {
-        'input_feature_dim': feature_dim_1,
-        'heads': [
-            {'name': 'head_0', 'type': 'sequence', 'output_dim': output_dim_1},
-            {'name': 'head_1', 'type': 'sequence_aggregation', 'output_dim': output_dim_2}
-        ]
-    }
-)
-output_heads = model(x, mask)
-assert output_heads['head_0'].shape == (batch_size, time_dim_1, output_dim_1)
-assert output_heads['head_1'].shape == (batch_size, output_dim_2)
-
-output_0 = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
-assert output_0.shape == (batch_size, output_dim_1)
-```
-
-## LinMulT: linear-complexity multimodal transformer for multiple input sequences
-
-### 2 input sequences with same time dimensions, single aggregated output
-
-```
-import torch
-from linmult import LinMulT, apply_logit_aggregation
-
-batch_size = 8
-time_dim = 450
-feature_dim_1, feature_dim_2 = 25, 35
-output_dim_1 = 5
-
-x_1 = torch.rand((batch_size, time_dim, feature_dim_1))
-x_2 = torch.rand((batch_size, time_dim, feature_dim_2))
-
-model = LinMulT(
-    {
-        'input_feature_dim': [feature_dim_1, feature_dim_2],
-        'heads': [{'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1}]
-    }
-)
-output_heads = model([x_1, x_2])
-assert output_heads['head_0'].shape == (batch_size, time_dim, output_dim_1)
-
-output = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
-assert output.shape == (batch_size, output_dim_1)
-```
-
-### 3 input sequences with different time dimensions, masks, multiple aggregated output heads
-
-```
+```python
 import torch
 from linmult import LinMulT
 
-batch_size = 8
-time_dim_1, time_dim_2, time_dim_3 = 1500, 450, 450
-feature_dim_1, feature_dim_2, feature_dim_3 = 25, 35, 256
-output_dim_1 = 5
-output_dim_2 = 6
+x1 = torch.rand(8, 1500, 25)  # (batch, time, features)
+x2 = torch.rand(8,  450, 35)
+x3 = torch.rand(8,  450, 256)
 
-x_1 = torch.rand((batch_size, time_dim_1, feature_dim_1))
-x_2 = torch.rand((batch_size, time_dim_2, feature_dim_2))
-x_3 = torch.rand((batch_size, time_dim_3, feature_dim_3))
-mask_1 = (torch.arange(x_1.size(1)).unsqueeze(0) < x_1.size(1) - 10).expand(batch_size, -1).bool() # Shape: (batch_size, time_dim_1) 
-mask_2 = (torch.arange(x_2.size(1)).unsqueeze(0) < x_2.size(1) - 10).expand(batch_size, -1).bool() # Shape: (batch_size, time_dim_2) 
-mask_3 = (torch.arange(x_3.size(1)).unsqueeze(0) < x_3.size(1) - 10).expand(batch_size, -1).bool() # Shape: (batch_size, time_dim_3) 
-
-model = LinMulT(
-    {
-        'input_feature_dim': [feature_dim_1, feature_dim_2, feature_dim_3],
-        'heads': [
-            {'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1},
-            {'name': 'head_1', 'type': 'simple', 'output_dim': output_dim_2}
-        ],
-        'time_dim_reducer': 'gap',
-    }
-)
-output_heads = model([x_1, x_2, x_3], [mask_1, mask_2, mask_3])
-assert output_heads['head_0'].shape == (batch_size, output_dim_1)
-assert output_heads['head_1'].shape == (batch_size, output_dim_2)
+model = LinMulT({
+    'input_feature_dim': [25, 35, 256],
+    'heads': [{'name': 'sentiment', 'type': 'simple', 'output_dim': 3}],
+    'time_dim_reducer': 'gap',
+})
+result = model([x1, x2, x3])
+assert result['sentiment'].shape == (8, 3)
 ```
 
-### 3 input sequences with different time dimensions, a missing input, enhanced multimodal signal module
+### Switching attention type
 
-```
-import torch
-from linmult import LinMulT, apply_logit_aggregation
-
-batch_size = 8
-time_dim_1, time_dim_2, time_dim_3 = 1500, 450, 450
-feature_dim_1, feature_dim_2, feature_dim_3 = 25, 35, 256
-output_dim_1 = 5
-
-x_1 = torch.rand((batch_size, time_dim_1, feature_dim_1))
-x_2 = torch.rand((batch_size, time_dim_2, feature_dim_2))
-x_3 = torch.rand((batch_size, time_dim_3, feature_dim_3))
-mask_1 = (torch.arange(x_1.size(1)).unsqueeze(0) < x_1.size(1) - 10).expand(batch_size, -1).bool() # Shape: (batch_size, time_dim_1) 
-mask_2 = (torch.arange(x_2.size(1)).unsqueeze(0) < x_2.size(1) - 10).expand(batch_size, -1).bool() # Shape: (batch_size, time_dim_2) 
-mask_3f = torch.zeros(size=x_3.size()[:2], dtype=bool) # Shape: (B, T_3)
-
-model = LinMulT(
-    {
-        'input_feature_dim': [feature_dim_1, feature_dim_2, feature_dim_3],
-        'heads': [
-            {'name': 'head_0', 'type': 'simple', 'output_dim': output_dim_1},
-            {'name': 'head_1', 'type': 'simple', 'output_dim': output_dim_2}
-        ],
-        'multimodal_signal': True,
-        'time_dim_aligner': 'amp',
-        'tam_fusion': True,
-        'aligned_time_dim': time_dim_2,
-    }
-)
-output_heads = model([x_1, x_2, x_3], [mask_1, mask_2, mask_3f])
-assert output_heads['head_0'].shape == (batch_size, time_dim_2, output_dim_1)
-assert output_heads['head_1'].shape == (batch_size, time_dim_2, output_dim_2)
-
-output = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
-assert output.shape == (batch_size, output_dim_1)
+```python
+model = LinT({
+    'input_feature_dim': 64,
+    'heads': [{'name': 'out', 'type': 'simple', 'output_dim': 10}],
+    'attention_type': 'flash',        # linear, performer, flash, bigbird, softmax, mha
+    'flash_query_key_dim': 32,        # flash (GAU) scoring dimension
+})
 ```
 
+## Documentation
 
-### 3 input sequences with different time dimensions, a missing input, enhanced multimodal signal module with multiple task-specific (sequence and aggregated sequence) output heads
+> [API reference](https://fodorad.github.io/linmult/)
 
-```
-import torch
-from linmult import LinMulT, apply_logit_aggregation
+> [Config reference](docs/config-reference.md)
 
-batch_size = 8
-time_dim_1, time_dim_2, time_dim_3 = 1500, 450, 450
-feature_dim_1, feature_dim_2, feature_dim_3 = 25, 35, 256
-output_dim_1 = 5
+> [Quick-start notebook](examples/quick_start.ipynb)
 
-x_1 = torch.rand((batch_size, time_dim_1, feature_dim_1))
-x_2 = torch.rand((batch_size, time_dim_2, feature_dim_2))
-x_3 = torch.rand((batch_size, time_dim_3, feature_dim_3))
-mask_1 = (torch.arange(x_1.size(1)).unsqueeze(0) < x_1.size(1) - 10).expand(batch_size, -1).bool() # Shape: (batch_size, time_dim_1) 
-mask_2 = (torch.arange(x_2.size(1)).unsqueeze(0) < x_2.size(1) - 10).expand(batch_size, -1).bool() # Shape: (batch_size, time_dim_2) 
-mask_3f = torch.zeros(size=x_3.size()[:2], dtype=bool) # Shape: (B, T_3)
+> [Attention benchmark](examples/benchmark_time_memory.ipynb)
 
-model = LinMulT(
-    {
-        'input_feature_dim': [feature_dim_1, feature_dim_2, feature_dim_3],
-        'heads': [
-            {'name': 'head_0', 'type': 'sequence', 'output_dim': output_dim_1},
-            {'name': 'head_1', 'type': 'sequence_aggregation', 'output_dim': output_dim_2}
-        ],
-        'multimodal_signal': True,
-        'time_dim_aligner': 'amp',
-        'tam_fusion': True,
-        'aligned_time_dim': time_dim_2,
-    }
-)
-output_heads = model([x_1, x_2, x_3], [mask_1, mask_2, mask_3f])
-assert output_heads['head_0'].shape == (batch_size, time_dim_2, output_dim_1)
-assert output_heads['head_1'].shape == (batch_size, output_dim_2)
+> [UR-Funny training example](examples/benchmark_urfunny.ipynb)
 
-output = apply_logit_aggregation(x=output_heads['head_0'], method='meanpooling')
-assert output.shape == (batch_size, output_dim_1)
-```
 
-### Using a config file
+---
 
-```
-import torch
-from linmult import LinMulT, apply_logit_aggregation, load_config
+## Similar projects using LinMulT
 
-batch_size = 8
-time_dim_1, time_dim_2, time_dim_3 = 300, 300, 500
-feature_dim_1, feature_dim_2, feature_dim_3 = 25, 41, 768
-output_dim_1 = 7
-output_dim_2 = 2
+### BlinkLinMulT (2023)
 
-x_1 = torch.rand((batch_size, time_dim_1, feature_dim_1))
-x_2 = torch.rand((batch_size, time_dim_2, feature_dim_2))
-x_3 = torch.rand((batch_size, time_dim_3, feature_dim_3))
+LinMulT trained for blink presence detection and eye state recognition across 7 public benchmark databases.
 
-config = load_config("configs/LinMulT.yaml")
-model = LinMulT(config)
+- Paper: [BlinkLinMulT: Transformer-based Eye Blink Detection](https://www.mdpi.com/2313-433X/9/10/196)
+- Code: [github.com/fodorad/BlinkLinMulT](https://github.com/fodorad/BlinkLinMulT)
 
-output_heads = model([x_1, x_2, x_3])
-assert output_heads['head_0'].shape == (batch_size, output_dim_1)
-assert output_heads['head_1'].shape == (batch_size, time_dim_1, output_dim_2)
+### PersonalityLinMulT (2022)
 
-output = apply_logit_aggregation(x=output_heads['head_1'], method='meanpooling')
-assert output.shape == (batch_size, output_dim_2)
-```
+LinMulT trained for Big Five personality trait estimation and sentiment analysis (MOSI, MOSEI, First Impressions V2).
 
-# Similar projects using LinMulT
+- Paper: [Multimodal Sentiment and Personality Perception Under Speech](https://proceedings.mlr.press/v173/fodor22a.html)
+- Code: [github.com/fodorad/PersonalityLinMulT](https://github.com/fodorad/PersonalityLinMulT)
 
-### (2023) BlinkLinMulT
+---
 
-LinMulT is trained for blink presence detection and eye state recognition tasks.
-Our results demonstrate comparable or superior performance compared to state-of-the-art models on 2 tasks, using 7 public benchmark databases.
+## Citation
 
-* paper: BlinkLinMulT: Transformer-based Eye Blink Detection ([pdf](https://adamfodor.com/pdf/2023_Fodor_Adam_MDPI_BlinkLinMulT.pdf), [website](https://www.mdpi.com/2313-433X/9/10/196))
-* code: https://github.com/fodorad/BlinkLinMulT
+If you found this work helpful, please cite the relevant paper:
 
-### (2022) PersonalityLinMulT
+**Eye blink detection (2023)**
 
-LinMulT is trained for Big Five personality trait estimation using the First Impressions V2 dataset and sentiment estimation using the MOSI and MOSEI datasets.
-
-* paper: Multimodal Sentiment and Personality Perception Under Speech: A Comparison of Transformer-based Architectures ([pdf](https://proceedings.mlr.press/v173/fodor22a/fodor22a.pdf), [website](https://proceedings.mlr.press/v173/fodor22a.html))
-* code: https://github.com/fodorad/PersonalityLinMulT
-
-# Citation - BibTex
-
-If you found our research helpful or influential please consider citing:
-
-### (2023) LinMulT for blink presence detection and eye state recognition:
-
-```
+```bibtex
 @article{blinklinmult-fodor23,
-  title = {BlinkLinMulT: Transformer-based Eye Blink Detection},
-  author = {Fodor, {\'A}d{\'a}m and Fenech, Kristian and L{\H{o}}rincz, Andr{\'a}s},
-  journal = {...}
-  pages = {1--19},
-  year = {2023}
+  title   = {BlinkLinMulT: Transformer-based Eye Blink Detection},
+  author  = {Fodor, {\'A}d{\'a}m and Fenech, Kristian and L{\H{o}}rincz, Andr{\'a}s},
+  journal = {Journal of Imaging},
+  pages   = {1--19},
+  year    = {2023}
 }
 ```
 
-### (2022) LinMulT for personality trait and sentiment estimation:
+**Personality and sentiment estimation (2022)**
 
-```
+```bibtex
 @InProceedings{pmlr-v173-fodor22a,
-  title = {Multimodal Sentiment and Personality Perception Under Speech: A Comparison of Transformer-based Architectures},
-  author = {Fodor, {\'A}d{\'a}m and Saboundji, Rachid R. and Jacques Junior, Julio C. S. and Escalera, Sergio and Gallardo-Pujol, David and L{\H{o}}rincz, Andr{\'a}s},
+  title     = {Multimodal Sentiment and Personality Perception Under Speech:
+               A Comparison of Transformer-based Architectures},
+  author    = {Fodor, {\'A}d{\'a}m and Saboundji, Rachid R. and
+               Jacques Junior, Julio C. S. and Escalera, Sergio and
+               Gallardo-Pujol, David and L{\H{o}}rincz, Andr{\'a}s},
   booktitle = {Understanding Social Behavior in Dyadic and Small Group Interactions},
-  pages = {218--241},
-  year = {2022},
-  editor = {Palmero, Cristina and Jacques Junior, Julio C. S. and Clapés, Albert and Guyon, Isabelle and Tu, Wei-Wei and Moeslund, Thomas B. and Escalera, Sergio},
-  volume = {173},
-  series = {Proceedings of Machine Learning Research},
-  month = {16 Oct},
+  pages     = {218--241},
+  year      = {2022},
+  volume    = {173},
+  series    = {Proceedings of Machine Learning Research},
   publisher = {PMLR},
-  pdf = {https://proceedings.mlr.press/v173/fodor22a/fodor22a.pdf},
-  url = {https://proceedings.mlr.press/v173/fodor22a.html}
+  url       = {https://proceedings.mlr.press/v173/fodor22a.html}
 }
 ```
 
-# Acknowledgement
+---
 
-The code is inspired by the following two materials:
+## Contact
 
-### Multimodal Transformer:
-
-* paper: Multimodal Transformer for Unaligned Multimodal Language Sequences ([1906.00295](https://arxiv.org/pdf/1906.00295.pdf))
-* code: https://github.com/yaohungt/Multimodal-Transformer
-
-### Linear Attention:
-
-* paper: Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention ([2006.16236](https://arxiv.org/pdf/2006.16236.pdf))
-* code: https://github.com/idiap/fast-transformers
-
-# Contact
-
-* Ádám Fodor (fodorad201@gmail.com) [[website](https://adamfodor.com)]
+**Ádám Fodor** — [adamfodor.com](https://adamfodor.com) · fodorad201@gmail.com
