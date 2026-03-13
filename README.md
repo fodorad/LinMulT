@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" alt="LinMulT" width="260"/>
+<img src="https://raw.githubusercontent.com/fodorad/LinMulT/main/docs/assets/logo.svg" alt="LinMulT" width="260"/>
 
 <br/>
 
