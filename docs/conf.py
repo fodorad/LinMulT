@@ -62,3 +62,4 @@ myst_heading_anchors = 3  # auto-generate heading anchors for internal #links
 html_theme = "furo"
 html_logo = "assets/logo.svg"
 html_static_path = ["assets"]
+html_baseurl = "https://adamfodor.com/LinMulT/"
