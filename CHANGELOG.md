@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.1] — 2026-03-13
+
+### Fixed
+- Logo image in PyPI README now uses an absolute URL so it renders correctly
+- CI and Docs workflows now pass `--system` to `uv pip install` (required on GitHub-hosted runners)
+- Sphinx `html_baseurl` updated to match the correct case-sensitive docs URL
+
+---
+
 ## [2.0.0] — 2026-03-08
 
 ### Added
@@ -64,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[2.0.1]: https://github.com/fodorad/linmult/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/fodorad/linmult/compare/v1.8.0...v2.0.0
 [1.8.0]: https://github.com/fodorad/linmult/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/fodorad/linmult/compare/v1.6.0...v1.7.0
