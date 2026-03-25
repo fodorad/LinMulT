@@ -9,9 +9,10 @@
 [![CI](https://github.com/fodorad/linmult/workflows/CI/badge.svg)](https://github.com/fodorad/linmult/actions)
 [![Coverage](https://codecov.io/gh/fodorad/linmult/branch/main/graph/badge.svg)](https://codecov.io/gh/fodorad/linmult)
 [![Docs](https://img.shields.io/badge/docs-online-blue?logo=githubpages)](https://adamfodor.com/LinMulT/)
-[![PyPI](https://img.shields.io/pypi/v/linmult?color=orange)](https://pypi.org/project/linmult/)
+[![GitHub Release](https://img.shields.io/github/v/release/fodorad/linmult?color=purple)](https://github.com/fodorad/exordium/releases)
+[![PyPI](https://img.shields.io/pypi/v/linmult?color=purple)](https://pypi.org/project/linmult/)
 [![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.10%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.9.1%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -102,7 +103,7 @@ model = LinT({
 
 ## Documentation
 
-> [API reference](https://fodorad.github.io/linmult/)
+> [API reference](https://fodorad.github.io/LinMulT/)
 
 > [Config reference](docs/config-reference.md)
 
