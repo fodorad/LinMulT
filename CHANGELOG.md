@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0](https://github.com/fodorad/LinMulT/compare/v2.0.1...v2.1.0) (2026-04-10)
+
+
+### Features
+
+* add optional TCN module for per-modality temporal smoothing ([#7](https://github.com/fodorad/LinMulT/issues/7)) ([218e0f2](https://github.com/fodorad/LinMulT/commit/218e0f2aa4d7345c9aff4d18076b7547ba6d4e8c))
+
 ## [2.0.1] — 2026-03-13
 
 ### Fixed
