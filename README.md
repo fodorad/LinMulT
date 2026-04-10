@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/fodorad/LinMulT/main/docs/assets/logo.svg" alt="LinMulT" width="260"/>
+<img src="https://raw.githubusercontent.com/fodorad/LinMulT/main/docs/assets/logo.svg" alt="LinMulT" width="320"/>
 
 <br/>
 
@@ -11,7 +11,7 @@
 [![Docs](https://img.shields.io/badge/docs-online-blue?logo=githubpages)](https://adamfodor.com/LinMulT/)
 [![GitHub Release](https://img.shields.io/github/v/release/fodorad/linmult?color=purple)](https://github.com/fodorad/exordium/releases)
 [![PyPI](https://img.shields.io/pypi/v/linmult?color=purple)](https://pypi.org/project/linmult/)
-[![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![Python](https://img.shields.io/badge/python-3.13%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.9.1%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
@@ -29,6 +29,7 @@ LinMulT is a modular Transformer library designed for **multimodal sequence mode
 | **Multiple modalities** | 1–N input sequences with independent lengths and feature dims |
 | **Standard attention** | `softmax` — quadratic complexity for baselines and ablations |
 | **Efficient attention** | `linear`, `performer`, `flash`, `bigbird` — sub-quadratic complexity |
+| **TCN smoothing** | optional per-modality temporal convolution before cross-modal attention |
 | **Flexible heads** | sequence, aggregated, upsample, downsample — mix freely |
 | **Missing modalities** | zero-mask a modality; model handles it gracefully |
 | **Config-driven** | dict or YAML; no subclassing required |
@@ -46,7 +47,7 @@ For development:
 ```bash
 git clone https://github.com/fodorad/linmult
 cd linmult
-pip install -e ".[dev,docs]"
+uv sync --extra dev --extra docs
 make check
 ```
 

@@ -10,47 +10,47 @@ help:
 # ── Setup ──────────────────────────────────────────────────────────────────────
 
 install:
-	uv pip install linmult
+	uv sync
 
 dev:
-	uv pip install -e ".[dev]"
+	uv sync --extra dev
 
 install-docs:
-	uv pip install -e ".[docs]"
+	uv sync --extra docs
 
 examples:
-	uv pip install -e ".[examples]"
+	uv sync --extra examples
 
 # ── Dev helpers (modify files) ─────────────────────────────────────────────────
 
 fix:
-	ruff format .
-	ruff check --fix .
+	uv run ruff format .
+	uv run ruff check --fix .
 
 # ── Checks (read-only — mirrors GitHub CI) ─────────────────────────────────────
 
 lint:
-	ruff check .
-	ruff format --check .
+	uv run ruff check .
+	uv run ruff format --check .
 
 type-check:
-	ty check linmult
+	uv run ty check linmult
 
 test:
-	coverage run -m unittest discover -s tests -v
-	coverage report
-	coverage html
-	coverage xml -o coverage.xml
+	uv run coverage run -m unittest discover -s tests -v
+	uv run coverage report
+	uv run coverage html
+	uv run coverage xml -o coverage.xml
 
 docs:
-	sphinx-build -b html docs/ site/
+	uv run sphinx-build -b html docs/ site/
 
 check: lint type-check test docs
 
 # ── Docs ───────────────────────────────────────────────────────────────────────
 
 docs-serve:
-	sphinx-autobuild docs/ site/
+	uv run sphinx-autobuild docs/ site/
 
 docs-deploy:
 	@echo "Docs are deployed automatically via GitHub Actions on push to main."

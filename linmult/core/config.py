@@ -116,6 +116,17 @@ class LinTConfig:
             heads. One of ``"attentionpool"``, ``"gap"``, ``"gmp"``, ``"last"``, or
             ``None`` (no reduction). Defaults to ``None``.
 
+    **TCN (optional)**
+
+    Args:
+        add_module_tcn (bool): Per-modality temporal convolutional network after
+            projection.  Smooths frame-level features before the encoder.
+            Defaults to ``True``.
+        tcn_num_layers (int): Number of dilated causal convolution layers.
+            Defaults to ``3``.
+        tcn_kernel_size (int): Kernel size for each TCN layer.  Defaults to ``3``.
+        tcn_dropout (float): Dropout in each TCN layer.  Defaults to ``0.1``.
+
     **Optional modules**
 
     Args:
@@ -160,6 +171,12 @@ class LinTConfig:
     dropout_pe: float = 0.0
     dropout_ffn: float = 0.1
     dropout_attention: float = 0.0
+
+    # --- TCN (optional) ---
+    add_module_tcn: bool = True
+    tcn_num_layers: int = 3
+    tcn_kernel_size: int = 3
+    tcn_dropout: float = 0.1
 
     # --- TRM ---
     time_dim_reducer: str | None = None
@@ -268,6 +285,17 @@ class LinMulTConfig:
         dropout_attention (float): Attention-weight dropout. Defaults to ``0.0``.
         dropout_tam (float): Dropout inside the TAM projector. Defaults to ``0.1``.
 
+    **TCN (optional)**
+
+    Args:
+        add_module_tcn (bool): Per-modality temporal convolutional network after
+            projection.  Smooths frame-level features before cross-modal attention.
+            Defaults to ``False``.
+        tcn_num_layers (int): Number of dilated causal convolution layers.
+            Defaults to ``3``.
+        tcn_kernel_size (int): Kernel size for each TCN layer.  Defaults to ``3``.
+        tcn_dropout (float): Dropout in each TCN layer.  Defaults to ``0.1``.
+
     **Unimodal self-attention (optional)**
 
     Args:
@@ -347,6 +375,12 @@ class LinMulTConfig:
     dropout_ffn: float = 0.1
     dropout_attention: float = 0.0
     dropout_tam: float = 0.1
+
+    # --- TCN (optional) ---
+    add_module_tcn: bool = True
+    tcn_num_layers: int = 3
+    tcn_kernel_size: int = 3
+    tcn_dropout: float = 0.1
 
     # --- Unimodal self-attention (optional) ---
     add_module_unimodal_sat: bool = False

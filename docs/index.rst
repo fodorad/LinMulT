@@ -4,8 +4,9 @@ LinMulT
 General-purpose Multimodal Transformer with Linear-Complexity Attention.
 
 Handles variable-length inputs across any number of modalities, supports
-missing-modality scenarios, and offers six attention variants from O(N²)
-softmax to O(N·s) gated linear attention — all behind a single config key.
+missing-modality scenarios, optional per-modality TCN smoothing, and offers
+six attention variants from O(N²) softmax to O(N·s) gated linear attention
+— all behind a single config key.
 
 Installation
 ------------

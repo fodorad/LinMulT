@@ -166,6 +166,13 @@ class TestLinTConfigDefaults(unittest.TestCase):
         cfg = LinTConfig(input_feature_dim=32)
         self.assertFalse(cfg.add_module_ffn_fusion)
 
+    def test_default_add_module_tcn_true(self):
+        cfg = LinTConfig(input_feature_dim=32)
+        self.assertTrue(cfg.add_module_tcn)
+        self.assertEqual(cfg.tcn_num_layers, 3)
+        self.assertEqual(cfg.tcn_kernel_size, 3)
+        self.assertEqual(cfg.tcn_dropout, 0.1)
+
     def test_default_heads_empty(self):
         cfg = LinTConfig(input_feature_dim=32)
         self.assertEqual(cfg.heads, [])
@@ -359,6 +366,7 @@ class TestLinMulTConfigDefaults(unittest.TestCase):
         self.assertFalse(cfg.add_module_multimodal_signal)
         self.assertFalse(cfg.add_module_sat_fusion)
         self.assertFalse(cfg.add_module_unimodal_sat)
+        self.assertTrue(cfg.add_module_tcn)
 
     def test_default_heads_empty(self):
         cfg = LinMulTConfig(input_feature_dim=[25, 35])
@@ -513,6 +521,21 @@ class TestLinMulTConfigFromDict(unittest.TestCase):
         self.assertTrue(cfg.add_module_multimodal_signal)
         self.assertTrue(cfg.add_module_sat_fusion)
         self.assertTrue(cfg.add_module_unimodal_sat)
+
+    def test_tcn_from_dict(self):
+        cfg = LinMulTConfig.from_dict(
+            {
+                "input_feature_dim": [25, 35],
+                "add_module_tcn": True,
+                "tcn_num_layers": 4,
+                "tcn_kernel_size": 5,
+                "tcn_dropout": 0.2,
+            }
+        )
+        self.assertTrue(cfg.add_module_tcn)
+        self.assertEqual(cfg.tcn_num_layers, 4)
+        self.assertEqual(cfg.tcn_kernel_size, 5)
+        self.assertEqual(cfg.tcn_dropout, 0.2)
 
     def test_special_handling(self):
         cfg = LinMulTConfig.from_dict(

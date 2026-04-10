@@ -1,7 +1,8 @@
 """Projection module for LinMulT and LinT.
 
 ProjectionModule handles per-modality feature projection with optional
-special handling (e.g. weighted-sum over transformer layers).
+special handling (e.g. weighted-sum over transformer layers) and optional
+per-modality TCN for temporal smoothing.
 """
 
 from typing import Any, cast
@@ -9,6 +10,8 @@ from typing import Any, cast
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
+
+from linmult.core.tcn import TCN
 
 
 class ProjectionModule(nn.Module):
@@ -19,6 +22,9 @@ class ProjectionModule(nn.Module):
     special handling (e.g. weighted-sum aggregation over stacked transformer
     layers) can reduce a 4-D input ``(B, N, T, F)`` to ``(B, T, F)``.
 
+    When TCN is enabled, a per-modality :class:`~linmult.core.tcn.TCN`
+    is applied after projection to smooth frame-level features temporally.
+
     Args:
         input_feature_dims (list[int]): Feature dimension per modality.
         d_model (int): Target projection dimension.
@@ -26,6 +32,12 @@ class ProjectionModule(nn.Module):
         special_handling (dict[str, Any], optional): Dict mapping modality names to
             handling specs. Currently supports
             ``{"type": "weighted_sum", "start_layer": int, "end_layer": int}``.
+        add_tcn (bool): Enable per-modality TCN after projection.
+            Defaults to ``True``.
+        tcn_num_layers (int): Number of dilated causal convolution layers.
+            Defaults to ``3``.
+        tcn_kernel_size (int): Kernel size for each TCN layer.  Defaults to ``3``.
+        tcn_dropout (float): Dropout in each TCN layer.  Defaults to ``0.1``.
     """
 
     def __init__(
@@ -34,6 +46,10 @@ class ProjectionModule(nn.Module):
         d_model: int,
         dropout: float = 0.0,
         special_handling: dict[str, Any] | None = None,
+        add_tcn: bool = True,
+        tcn_num_layers: int = 3,
+        tcn_kernel_size: int = 3,
+        tcn_dropout: float = 0.1,
     ) -> None:
         super().__init__()
         self.d_model = d_model
@@ -46,6 +62,15 @@ class ProjectionModule(nn.Module):
                 for in_ch in input_feature_dims
             ]
         )
+
+        self.tcn_blocks: nn.ModuleList | None = None
+        if add_tcn:
+            self.tcn_blocks = nn.ModuleList(
+                [
+                    TCN(d_model, tcn_num_layers, tcn_kernel_size, tcn_dropout)
+                    for _ in input_feature_dims
+                ]
+            )
 
         self.special_modules = nn.ParameterDict()
         for name, params in self.special_handling.items():
@@ -89,5 +114,8 @@ class ProjectionModule(nn.Module):
                 F.dropout(x.transpose(1, 2), p=self.dropout, training=self.training)
             ).transpose(1, 2)
             projected_list.append(projected_x)
+
+        if self.tcn_blocks is not None:
+            projected_list = [tcn(proj) for tcn, proj in zip(self.tcn_blocks, projected_list)]
 
         return projected_list
