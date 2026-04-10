@@ -211,6 +211,7 @@
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/norm/index.html">linmult.core.norm</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/pe/index.html">linmult.core.pe</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/projection/index.html">linmult.core.projection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/tcn/index.html">linmult.core.tcn</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/temporal/index.html">linmult.core.temporal</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/transformer/index.html">linmult.core.transformer</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/utils/index.html">linmult.core.utils</a></li>
@@ -267,8 +268,9 @@
 <h1>LinMulT<a class="headerlink" href="#linmult" title="Link to this heading">¶</a></h1>
 <p>General-purpose Multimodal Transformer with Linear-Complexity Attention.</p>
 <p>Handles variable-length inputs across any number of modalities, supports
-missing-modality scenarios, and offers six attention variants from O(N²)
-softmax to O(N·s) gated linear attention — all behind a single config key.</p>
+missing-modality scenarios, optional per-modality TCN smoothing, and offers
+six attention variants from O(N²) softmax to O(N·s) gated linear attention
+— all behind a single config key.</p>
 <section id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>linmult

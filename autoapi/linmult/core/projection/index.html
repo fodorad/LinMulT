@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../../../genindex.html"><link rel="search" title="Search" href="../../../../search.html"><link rel="next" title="linmult.core.temporal" href="../temporal/index.html"><link rel="prev" title="linmult.core.pe" href="../pe/index.html">
+<link rel="index" title="Index" href="../../../../genindex.html"><link rel="search" title="Search" href="../../../../search.html"><link rel="next" title="linmult.core.tcn" href="../tcn/index.html"><link rel="prev" title="linmult.core.pe" href="../pe/index.html">
         <link rel="canonical" href="https://adamfodor.com/LinMulT/autoapi/linmult/core/projection/index.html">
         <link rel="prefetch" href="../../../../_static/logo.svg" as="image">
 
@@ -211,6 +211,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../norm/index.html">linmult.core.norm</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../pe/index.html">linmult.core.pe</a></li>
 <li class="toctree-l4 current current-page"><a class="current reference internal" href="#">linmult.core.projection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tcn/index.html">linmult.core.tcn</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../temporal/index.html">linmult.core.temporal</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../transformer/index.html">linmult.core.transformer</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../utils/index.html">linmult.core.utils</a></li>
@@ -267,7 +268,8 @@
 <span id="linmult-core-projection"></span><h1>linmult.core.projection<a class="headerlink" href="#module-linmult.core.projection" title="Link to this heading">¶</a></h1>
 <p>Projection module for LinMulT and LinT.</p>
 <p>ProjectionModule handles per-modality feature projection with optional
-special handling (e.g. weighted-sum over transformer layers).</p>
+special handling (e.g. weighted-sum over transformer layers) and optional
+per-modality TCN for temporal smoothing.</p>
 <section id="classes">
 <h2>Classes<a class="headerlink" href="#classes" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper autosummary longtable docutils container">
@@ -284,13 +286,15 @@ special handling (e.g. weighted-sum over transformer layers).</p>
 <h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="linmult.core.projection.ProjectionModule">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">linmult.core.projection.</span></span><span class="sig-name descname"><span class="pre">ProjectionModule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_feature_dims</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d_model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">special_handling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/linmult/core/projection.html#ProjectionModule"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#linmult.core.projection.ProjectionModule" title="Link to this definition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">linmult.core.projection.</span></span><span class="sig-name descname"><span class="pre">ProjectionModule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_feature_dims</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d_model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">special_handling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_tcn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tcn_num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tcn_kernel_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tcn_dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/linmult/core/projection.html#ProjectionModule"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#linmult.core.projection.ProjectionModule" title="Link to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></p>
 <p>Projects each modality’s features to a shared dimension.</p>
 <p>For each modality, applies a 1-D convolution (kernel=1) that maps
 <code class="docutils literal notranslate"><span class="pre">input_feature_dims[i]</span></code> to <code class="docutils literal notranslate"><span class="pre">d_model</span></code>.  Before projection, optional
 special handling (e.g. weighted-sum aggregation over stacked transformer
 layers) can reduce a 4-D input <code class="docutils literal notranslate"><span class="pre">(B,</span> <span class="pre">N,</span> <span class="pre">T,</span> <span class="pre">F)</span></code> to <code class="docutils literal notranslate"><span class="pre">(B,</span> <span class="pre">T,</span> <span class="pre">F)</span></code>.</p>
+<p>When TCN is enabled, a per-modality <a class="reference internal" href="../tcn/index.html#linmult.core.tcn.TCN" title="linmult.core.tcn.TCN"><code class="xref py py-class docutils literal notranslate"><span class="pre">TCN</span></code></a>
+is applied after projection to smooth frame-level features temporally.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -300,6 +304,12 @@ layers) can reduce a 4-D input <code class="docutils literal notranslate"><span 
 <li><p><strong>special_handling</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Dict mapping modality names to
 handling specs. Currently supports
 <code class="docutils literal notranslate"><span class="pre">{&quot;type&quot;:</span> <span class="pre">&quot;weighted_sum&quot;,</span> <span class="pre">&quot;start_layer&quot;:</span> <span class="pre">int,</span> <span class="pre">&quot;end_layer&quot;:</span> <span class="pre">int}</span></code>.</p></li>
+<li><p><strong>add_tcn</strong> (<em>bool</em>) – Enable per-modality TCN after projection.
+Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p><strong>tcn_num_layers</strong> (<em>int</em>) – Number of dilated causal convolution layers.
+Defaults to <code class="docutils literal notranslate"><span class="pre">3</span></code>.</p></li>
+<li><p><strong>tcn_kernel_size</strong> (<em>int</em>) – Kernel size for each TCN layer.  Defaults to <code class="docutils literal notranslate"><span class="pre">3</span></code>.</p></li>
+<li><p><strong>tcn_dropout</strong> (<em>float</em>) – Dropout in each TCN layer.  Defaults to <code class="docutils literal notranslate"><span class="pre">0.1</span></code>.</p></li>
 </ul>
 </dd>
 </dl>
@@ -332,12 +342,12 @@ handling specs. Currently supports
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="../temporal/index.html">
+          <a class="next-page" href="../tcn/index.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">linmult.core.temporal</div>
+                <div class="title">linmult.core.tcn</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>

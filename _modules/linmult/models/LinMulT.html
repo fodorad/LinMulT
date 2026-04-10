@@ -210,6 +210,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/norm/index.html">linmult.core.norm</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/pe/index.html">linmult.core.pe</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/projection/index.html">linmult.core.projection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/tcn/index.html">linmult.core.tcn</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/temporal/index.html">linmult.core.temporal</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/transformer/index.html">linmult.core.transformer</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/utils/index.html">linmult.core.utils</a></li>
@@ -323,6 +324,10 @@
             <span class="n">d_model</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">d_model</span><span class="p">,</span>
             <span class="n">dropout</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">dropout_input</span><span class="p">,</span>
             <span class="n">special_handling</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">special_handling</span><span class="p">,</span>
+            <span class="n">add_tcn</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">add_module_tcn</span><span class="p">,</span>
+            <span class="n">tcn_num_layers</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">tcn_num_layers</span><span class="p">,</span>
+            <span class="n">tcn_kernel_size</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">tcn_kernel_size</span><span class="p">,</span>
+            <span class="n">tcn_dropout</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">tcn_dropout</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">cross_modal</span> <span class="o">=</span> <span class="n">CrossModalModule</span><span class="p">(</span>
@@ -496,7 +501,7 @@
     <span class="k">if</span> <span class="n">auxiliary_heads</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">None</span>
     <span class="k">return</span> <span class="p">[</span>
-        <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">head</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">head</span> <span class="ow">in</span> <span class="n">aux_heads</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">head</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">head</span> <span class="ow">in</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;nn.ModuleDict&quot;</span><span class="p">,</span> <span class="n">aux_heads</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">aux_heads</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">x_list</span><span class="p">,</span> <span class="n">mask_list</span><span class="p">,</span> <span class="n">auxiliary_heads</span><span class="p">)</span>
     <span class="p">]</span>
 </pre></div>

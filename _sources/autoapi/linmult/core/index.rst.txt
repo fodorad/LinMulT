@@ -19,6 +19,7 @@ Submodules
    /autoapi/linmult/core/norm/index
    /autoapi/linmult/core/pe/index
    /autoapi/linmult/core/projection/index
+   /autoapi/linmult/core/tcn/index
    /autoapi/linmult/core/temporal/index
    /autoapi/linmult/core/transformer/index
    /autoapi/linmult/core/utils/index

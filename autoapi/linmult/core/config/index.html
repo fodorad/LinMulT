@@ -211,6 +211,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../norm/index.html">linmult.core.norm</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../pe/index.html">linmult.core.pe</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../projection/index.html">linmult.core.projection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tcn/index.html">linmult.core.tcn</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../temporal/index.html">linmult.core.temporal</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../transformer/index.html">linmult.core.transformer</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../utils/index.html">linmult.core.utils</a></li>
@@ -393,6 +394,20 @@ heads. One of <code class="docutils literal notranslate"><span class="pre">&quot
 <code class="docutils literal notranslate"><span class="pre">None</span></code> (no reduction). Defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
 </dd>
 </dl>
+<p><strong>TCN (optional)</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>add_module_tcn</strong> (<em>bool</em>) – Per-modality temporal convolutional network after
+projection.  Smooths frame-level features before the encoder.
+Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p><strong>tcn_num_layers</strong> (<em>int</em>) – Number of dilated causal convolution layers.
+Defaults to <code class="docutils literal notranslate"><span class="pre">3</span></code>.</p></li>
+<li><p><strong>tcn_kernel_size</strong> (<em>int</em>) – Kernel size for each TCN layer.  Defaults to <code class="docutils literal notranslate"><span class="pre">3</span></code>.</p></li>
+<li><p><strong>tcn_dropout</strong> (<em>float</em>) – Dropout in each TCN layer.  Defaults to <code class="docutils literal notranslate"><span class="pre">0.1</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
 <p><strong>Optional modules</strong></p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -524,6 +539,20 @@ Defaults to <code class="docutils literal notranslate"><span class="pre">None</s
 <li><p><strong>dropout_ffn</strong> (<em>float</em>) – Dropout in transformer FFN. Defaults to <code class="docutils literal notranslate"><span class="pre">0.1</span></code>.</p></li>
 <li><p><strong>dropout_attention</strong> (<em>float</em>) – Attention-weight dropout. Defaults to <code class="docutils literal notranslate"><span class="pre">0.0</span></code>.</p></li>
 <li><p><strong>dropout_tam</strong> (<em>float</em>) – Dropout inside the TAM projector. Defaults to <code class="docutils literal notranslate"><span class="pre">0.1</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+<p><strong>TCN (optional)</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>add_module_tcn</strong> (<em>bool</em>) – Per-modality temporal convolutional network after
+projection.  Smooths frame-level features before cross-modal attention.
+Defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+<li><p><strong>tcn_num_layers</strong> (<em>int</em>) – Number of dilated causal convolution layers.
+Defaults to <code class="docutils literal notranslate"><span class="pre">3</span></code>.</p></li>
+<li><p><strong>tcn_kernel_size</strong> (<em>int</em>) – Kernel size for each TCN layer.  Defaults to <code class="docutils literal notranslate"><span class="pre">3</span></code>.</p></li>
+<li><p><strong>tcn_dropout</strong> (<em>float</em>) – Dropout in each TCN layer.  Defaults to <code class="docutils literal notranslate"><span class="pre">0.1</span></code>.</p></li>
 </ul>
 </dd>
 </dl>

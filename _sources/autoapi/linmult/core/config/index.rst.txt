@@ -128,6 +128,20 @@ Module Contents
                             ``None`` (no reduction). Defaults to ``None``.
    :type time_dim_reducer: str | None
 
+   **TCN (optional)**
+
+   :param add_module_tcn: Per-modality temporal convolutional network after
+                          projection.  Smooths frame-level features before the encoder.
+                          Defaults to ``True``.
+   :type add_module_tcn: bool
+   :param tcn_num_layers: Number of dilated causal convolution layers.
+                          Defaults to ``3``.
+   :type tcn_num_layers: int
+   :param tcn_kernel_size: Kernel size for each TCN layer.  Defaults to ``3``.
+   :type tcn_kernel_size: int
+   :param tcn_dropout: Dropout in each TCN layer.  Defaults to ``0.1``.
+   :type tcn_dropout: float
+
    **Optional modules**
 
    :param add_module_ffn_fusion: FFN + residual block after the encoder.
@@ -248,6 +262,20 @@ Module Contents
    :type dropout_attention: float
    :param dropout_tam: Dropout inside the TAM projector. Defaults to ``0.1``.
    :type dropout_tam: float
+
+   **TCN (optional)**
+
+   :param add_module_tcn: Per-modality temporal convolutional network after
+                          projection.  Smooths frame-level features before cross-modal attention.
+                          Defaults to ``False``.
+   :type add_module_tcn: bool
+   :param tcn_num_layers: Number of dilated causal convolution layers.
+                          Defaults to ``3``.
+   :type tcn_num_layers: int
+   :param tcn_kernel_size: Kernel size for each TCN layer.  Defaults to ``3``.
+   :type tcn_kernel_size: int
+   :param tcn_dropout: Dropout in each TCN layer.  Defaults to ``0.1``.
+   :type tcn_dropout: float
 
    **Unimodal self-attention (optional)**
 

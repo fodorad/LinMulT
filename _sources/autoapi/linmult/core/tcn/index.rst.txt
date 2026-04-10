@@ -1,0 +1,102 @@
+linmult.core.tcn
+================
+
+.. py:module:: linmult.core.tcn
+
+.. autoapi-nested-parse::
+
+   Temporal Convolutional Network (TCN) for local temporal smoothing.
+
+   Provides dilated causal 1-D convolution layers that capture short-range
+   temporal dynamics (e.g. micro-expressions, motion patterns) without leaking
+   future information.  Designed to sit after the projection Conv1d and before
+   cross-modal attention in the LinMulT pipeline.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   linmult.core.tcn.TCNLayer
+   linmult.core.tcn.TCN
+
+
+Module Contents
+---------------
+
+.. py:class:: TCNLayer(d_model: int, kernel_size: int = 3, dilation: int = 1, dropout: float = 0.1)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Single dilated causal Conv1d layer with residual connection.
+
+   Computes::
+
+       x + dropout(relu(bn(causal_conv1d(x))))
+
+   Causal padding is applied on the left so that output at time *t* depends
+   only on inputs at times ``<= t``.
+
+   :param d_model: Number of input and output channels.
+   :type d_model: int
+   :param kernel_size: Convolution kernel size.  Defaults to ``3``.
+   :type kernel_size: int
+   :param dilation: Dilation factor.  Defaults to ``1``.
+   :type dilation: int
+   :param dropout: Dropout probability after activation.  Defaults to ``0.1``.
+   :type dropout: float
+
+   Initialize internal Module state, shared by both nn.Module and ScriptModule.
+
+
+   .. py:method:: forward(x: torch.Tensor) -> torch.Tensor
+
+      Apply causal convolution with residual.
+
+      :param x: Input ``(B, T, d_model)``.
+      :type x: torch.Tensor
+
+      :returns: Output ``(B, T, d_model)``, same shape as input.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: TCN(d_model: int, num_layers: int = 3, kernel_size: int = 3, dropout: float = 0.1)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Stack of :class:`TCNLayer` with exponentially increasing dilation.
+
+   Dilations are ``[1, 2, 4, ..., 2^(num_layers-1)]``, giving a receptive
+   field of ``1 + sum((kernel_size - 1) * 2^i for i in range(num_layers))``
+   frames.  With the defaults (``num_layers=3, kernel_size=3``) the receptive
+   field is 15 frames (~0.5 s at 30 fps).
+
+   :param d_model: Channel dimension (preserved through all layers).
+   :type d_model: int
+   :param num_layers: Number of dilated convolution layers.  Defaults to ``3``.
+   :type num_layers: int
+   :param kernel_size: Kernel size for every layer.  Defaults to ``3``.
+   :type kernel_size: int
+   :param dropout: Dropout probability in each layer.  Defaults to ``0.1``.
+   :type dropout: float
+
+   Initialize internal Module state, shared by both nn.Module and ScriptModule.
+
+
+   .. py:method:: forward(x: torch.Tensor) -> torch.Tensor
+
+      Apply all TCN layers sequentially.
+
+      :param x: Input ``(B, T, d_model)``.
+      :type x: torch.Tensor
+
+      :returns: Output ``(B, T, d_model)``, temporally smoothed.
+      :rtype: torch.Tensor
+
+
+

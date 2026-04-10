@@ -8,7 +8,8 @@ linmult.core.projection
    Projection module for LinMulT and LinT.
 
    ProjectionModule handles per-modality feature projection with optional
-   special handling (e.g. weighted-sum over transformer layers).
+   special handling (e.g. weighted-sum over transformer layers) and optional
+   per-modality TCN for temporal smoothing.
 
 
 
@@ -23,7 +24,7 @@ Classes
 Module Contents
 ---------------
 
-.. py:class:: ProjectionModule(input_feature_dims: list[int], d_model: int, dropout: float = 0.0, special_handling: dict[str, Any] | None = None)
+.. py:class:: ProjectionModule(input_feature_dims: list[int], d_model: int, dropout: float = 0.0, special_handling: dict[str, Any] | None = None, add_tcn: bool = True, tcn_num_layers: int = 3, tcn_kernel_size: int = 3, tcn_dropout: float = 0.1)
 
    Bases: :py:obj:`torch.nn.Module`
 
@@ -35,6 +36,9 @@ Module Contents
    special handling (e.g. weighted-sum aggregation over stacked transformer
    layers) can reduce a 4-D input ``(B, N, T, F)`` to ``(B, T, F)``.
 
+   When TCN is enabled, a per-modality :class:`~linmult.core.tcn.TCN`
+   is applied after projection to smooth frame-level features temporally.
+
    :param input_feature_dims: Feature dimension per modality.
    :type input_feature_dims: list[int]
    :param d_model: Target projection dimension.
@@ -45,6 +49,16 @@ Module Contents
                             handling specs. Currently supports
                             ``{"type": "weighted_sum", "start_layer": int, "end_layer": int}``.
    :type special_handling: dict[str, Any], optional
+   :param add_tcn: Enable per-modality TCN after projection.
+                   Defaults to ``True``.
+   :type add_tcn: bool
+   :param tcn_num_layers: Number of dilated causal convolution layers.
+                          Defaults to ``3``.
+   :type tcn_num_layers: int
+   :param tcn_kernel_size: Kernel size for each TCN layer.  Defaults to ``3``.
+   :type tcn_kernel_size: int
+   :param tcn_dropout: Dropout in each TCN layer.  Defaults to ``0.1``.
+   :type tcn_dropout: float
 
    Initialize internal Module state, shared by both nn.Module and ScriptModule.
 

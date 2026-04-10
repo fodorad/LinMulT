@@ -210,6 +210,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/norm/index.html">linmult.core.norm</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/pe/index.html">linmult.core.pe</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/projection/index.html">linmult.core.projection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/tcn/index.html">linmult.core.tcn</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/temporal/index.html">linmult.core.temporal</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/transformer/index.html">linmult.core.transformer</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../autoapi/linmult/core/utils/index.html">linmult.core.utils</a></li>
@@ -383,6 +384,17 @@
 <span class="sd">            heads. One of ``&quot;attentionpool&quot;``, ``&quot;gap&quot;``, ``&quot;gmp&quot;``, ``&quot;last&quot;``, or</span>
 <span class="sd">            ``None`` (no reduction). Defaults to ``None``.</span>
 
+<span class="sd">    **TCN (optional)**</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        add_module_tcn (bool): Per-modality temporal convolutional network after</span>
+<span class="sd">            projection.  Smooths frame-level features before the encoder.</span>
+<span class="sd">            Defaults to ``True``.</span>
+<span class="sd">        tcn_num_layers (int): Number of dilated causal convolution layers.</span>
+<span class="sd">            Defaults to ``3``.</span>
+<span class="sd">        tcn_kernel_size (int): Kernel size for each TCN layer.  Defaults to ``3``.</span>
+<span class="sd">        tcn_dropout (float): Dropout in each TCN layer.  Defaults to ``0.1``.</span>
+
 <span class="sd">    **Optional modules**</span>
 
 <span class="sd">    Args:</span>
@@ -427,6 +439,12 @@
     <span class="n">dropout_pe</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
     <span class="n">dropout_ffn</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
     <span class="n">dropout_attention</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="c1"># --- TCN (optional) ---</span>
+    <span class="n">add_module_tcn</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">tcn_num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">tcn_kernel_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">tcn_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
 
     <span class="c1"># --- TRM ---</span>
     <span class="n">time_dim_reducer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
@@ -550,6 +568,17 @@
 <span class="sd">        dropout_attention (float): Attention-weight dropout. Defaults to ``0.0``.</span>
 <span class="sd">        dropout_tam (float): Dropout inside the TAM projector. Defaults to ``0.1``.</span>
 
+<span class="sd">    **TCN (optional)**</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        add_module_tcn (bool): Per-modality temporal convolutional network after</span>
+<span class="sd">            projection.  Smooths frame-level features before cross-modal attention.</span>
+<span class="sd">            Defaults to ``False``.</span>
+<span class="sd">        tcn_num_layers (int): Number of dilated causal convolution layers.</span>
+<span class="sd">            Defaults to ``3``.</span>
+<span class="sd">        tcn_kernel_size (int): Kernel size for each TCN layer.  Defaults to ``3``.</span>
+<span class="sd">        tcn_dropout (float): Dropout in each TCN layer.  Defaults to ``0.1``.</span>
+
 <span class="sd">    **Unimodal self-attention (optional)**</span>
 
 <span class="sd">    Args:</span>
@@ -629,6 +658,12 @@
     <span class="n">dropout_ffn</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
     <span class="n">dropout_attention</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
     <span class="n">dropout_tam</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
+
+    <span class="c1"># --- TCN (optional) ---</span>
+    <span class="n">add_module_tcn</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">tcn_num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">tcn_kernel_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">tcn_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
 
     <span class="c1"># --- Unimodal self-attention (optional) ---</span>
     <span class="n">add_module_unimodal_sat</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>

@@ -211,6 +211,7 @@
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/norm/index.html">linmult.core.norm</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/pe/index.html">linmult.core.pe</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/projection/index.html">linmult.core.projection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/tcn/index.html">linmult.core.tcn</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/temporal/index.html">linmult.core.temporal</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/transformer/index.html">linmult.core.transformer</a></li>
 <li class="toctree-l4"><a class="reference internal" href="autoapi/linmult/core/utils/index.html">linmult.core.utils</a></li>
@@ -357,6 +358,10 @@ for multimodal models. Each output head is described by a
 
 <span class="nt">time_dim_reducer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gap</span>
 
+<span class="nt">add_module_tcn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">tcn_num_layers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="nt">tcn_kernel_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+
 <span class="nt">add_module_unimodal_sat</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="nt">add_module_multimodal_signal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="nt">tam_aligner</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">amp</span>
@@ -382,6 +387,10 @@ for multimodal models. Each output head is described by a
 <span class="nt">num_heads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8</span>
 <span class="nt">cmt_num_layers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">6</span>
 <span class="nt">attention_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">linear</span>
+
+<span class="nt">add_module_tcn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">tcn_num_layers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="nt">tcn_kernel_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
 
 <span class="nt">time_dim_reducer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">attentionpool</span>
 
