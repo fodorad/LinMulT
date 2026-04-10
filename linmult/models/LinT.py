@@ -53,6 +53,10 @@ class LinT(nn.Module):
             d_model=config.d_model,
             dropout=config.dropout_input,
             special_handling=config.special_handling,
+            add_tcn=config.add_module_tcn,
+            tcn_num_layers=config.tcn_num_layers,
+            tcn_kernel_size=config.tcn_kernel_size,
+            tcn_dropout=config.tcn_dropout,
         )
 
         # 2. Self-attention transformer

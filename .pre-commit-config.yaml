@@ -10,7 +10,7 @@ repos:
     hooks:
       - id: ty-check
         name: ty type check
-        entry: ty check
+        entry: uv run ty check
         args: [linmult]
         language: system
         types: [python]

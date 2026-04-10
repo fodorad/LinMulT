@@ -69,6 +69,10 @@ attention_type: linear
 
 time_dim_reducer: gap
 
+add_module_tcn: true
+tcn_num_layers: 3
+tcn_kernel_size: 3
+
 add_module_unimodal_sat: false
 add_module_multimodal_signal: true
 tam_aligner: amp
@@ -94,6 +98,10 @@ d_model: 40
 num_heads: 8
 cmt_num_layers: 6
 attention_type: linear
+
+add_module_tcn: true
+tcn_num_layers: 3
+tcn_kernel_size: 3
 
 time_dim_reducer: attentionpool
 

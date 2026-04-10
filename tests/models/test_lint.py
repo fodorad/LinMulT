@@ -73,6 +73,20 @@ class TestLinT(unittest.TestCase):
         self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
         self.assertFalse(torch.isnan(output[0]).any())
 
+    def test_tcn_projection(self):
+        model = LinT(
+            LinTConfig.from_dict(
+                {
+                    "input_feature_dim": self.feature_dim_1,
+                    "heads": [{"type": "simple", "output_dim": self.output_dim_1}],
+                    "add_module_tcn": True,
+                    "time_dim_reducer": "gap",
+                }
+            )
+        )
+        output = list(model(self.x_1).values())
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
     def test_ffn_fusion(self):
         model = LinT(
             LinTConfig.from_dict(

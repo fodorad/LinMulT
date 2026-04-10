@@ -1275,6 +1275,24 @@ class TestLinMulT(unittest.TestCase):
         self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
         self.assertFalse(torch.isnan(output[0]).any())
 
+    # --- TCN ---
+
+    def test_tcn_projection(self):
+        model = LinMulT(
+            LinMulTConfig.from_dict(
+                {
+                    "input_feature_dim": [self.feature_dim_2, self.feature_dim_3],
+                    "heads": [{"type": "simple", "output_dim": self.output_dim_1}],
+                    "add_module_tcn": True,
+                    "tcn_num_layers": 2,
+                    "tcn_kernel_size": 3,
+                    "time_dim_reducer": "gap",
+                }
+            )
+        )
+        output = list(model([self.x_2, self.x_3]).values())
+        self.assertEqual(output[0].shape, (self.batch_size, self.output_dim_1))
+
     def test_single_modality_raises(self):
         # Regression: LinMulT with n_sequences < 2 crashed with cryptic RuntimeError.
         with self.assertRaises(ValueError) as ctx:

@@ -20,7 +20,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: "3.12"
+        python-version: "3.13"
 
     - name: Set up uv
       uses: astral-sh/setup-uv@v7
@@ -28,10 +28,10 @@ jobs:
         enable-cache: true
 
     - name: Install package and docs dependencies
-      run: uv pip install --system -e ".[docs]"
+      run: uv sync --extra docs
 
     - name: Build docs
-      run: sphinx-build -b html docs/ site/
+      run: uv run sphinx-build -b html docs/ site/
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4

@@ -62,6 +62,10 @@ class LinMulT(nn.Module):
             d_model=config.d_model,
             dropout=config.dropout_input,
             special_handling=config.special_handling,
+            add_tcn=config.add_module_tcn,
+            tcn_num_layers=config.tcn_num_layers,
+            tcn_kernel_size=config.tcn_kernel_size,
+            tcn_dropout=config.tcn_dropout,
         )
 
         self.cross_modal = CrossModalModule(
@@ -228,6 +232,6 @@ def _apply_auxiliary_heads(
     if auxiliary_heads is None:
         return None
     return [
-        {name: head(x, mask=mask) for name, head in aux_heads.items()}
+        {name: head(x, mask=mask) for name, head in cast("nn.ModuleDict", aux_heads).items()}
         for x, mask, aux_heads in zip(x_list, mask_list, auxiliary_heads)
     ]
