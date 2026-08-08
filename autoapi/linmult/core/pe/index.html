@@ -306,6 +306,16 @@ than the current sequence or the feature dimensionality has changed.
 For odd feature dimensions, the cosine slot count is <code class="docutils literal notranslate"><span class="pre">floor(F/2)</span></code>
 while the sine slot count is <code class="docutils literal notranslate"><span class="pre">ceil(F/2)</span></code>; the division term is
 sliced accordingly so no index is out of range.</p>
+<p>During tracing (<code class="docutils literal notranslate"><span class="pre">torch.jit.trace</span></code>/<code class="docutils literal notranslate"><span class="pre">torch.onnx.export</span></code>), the cache
+is always rebuilt instead of reused. <code class="docutils literal notranslate"><span class="pre">self.pe</span></code> is a single buffer
+mutated across repeated calls (e.g. once for the query, once for the
+key/value in cross-modal attention); a tracer only observes whichever
+branch fires on the shapes it is given, so if two calls happen to see
+the same <code class="docutils literal notranslate"><span class="pre">time_dim</span></code> at trace time, the graph bakes in one shared
+slice for both — which then fails at inference for genuinely
+different query/key lengths, even though eager mode handles that
+case correctly. Always rebuilding under tracing removes the shared
+mutable state that causes this.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>x</strong> (<em>torch.Tensor</em>) – Input tensor of shape <code class="docutils literal notranslate"><span class="pre">(B,</span> <span class="pre">T,</span> <span class="pre">F)</span></code>.</p>
