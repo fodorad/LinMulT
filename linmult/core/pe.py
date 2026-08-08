@@ -34,6 +34,17 @@ class PositionalEncoding(nn.Module):
         while the sine slot count is ``ceil(F/2)``; the division term is
         sliced accordingly so no index is out of range.
 
+        During tracing (``torch.jit.trace``/``torch.onnx.export``), the cache
+        is always rebuilt instead of reused. ``self.pe`` is a single buffer
+        mutated across repeated calls (e.g. once for the query, once for the
+        key/value in cross-modal attention); a tracer only observes whichever
+        branch fires on the shapes it is given, so if two calls happen to see
+        the same ``time_dim`` at trace time, the graph bakes in one shared
+        slice for both — which then fails at inference for genuinely
+        different query/key lengths, even though eager mode handles that
+        case correctly. Always rebuilding under tracing removes the shared
+        mutable state that causes this.
+
         Args:
             x (torch.Tensor): Input tensor of shape ``(B, T, F)``.
 
@@ -44,7 +55,13 @@ class PositionalEncoding(nn.Module):
 
         # Rebuild only when the cached PE is too short or the feature dim changed.
         # A larger cache is reused by slicing, avoiding recomputation on shorter sequences.
-        if self.pe is None or self.pe.size(1) < time_dim or self.pe.size(2) != feature_dim:
+        # Under tracing, always rebuild (see docstring) rather than trust the cache.
+        if (
+            self.pe is None
+            or self.pe.size(1) < time_dim
+            or self.pe.size(2) != feature_dim
+            or torch.jit.is_tracing()
+        ):
             pe = torch.zeros(time_dim, feature_dim, device=x.device)
             position = torch.arange(0, time_dim, dtype=torch.float, device=x.device).unsqueeze(1)
             div_term = torch.exp(

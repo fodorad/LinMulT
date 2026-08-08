@@ -196,3 +196,43 @@ class TestTransformerEncoder(unittest.TestCase):
         output = encoder(self.d_1, self.d_2, self.d_2, query_mask=self.mask_1, key_mask=self.mask_2)
         self.assertEqual(output.shape, (self.batch_size, self.time_dim_1, self.d_model))
         self.assertFalse(torch.isnan(output).any())
+
+    # --- Tracing regression: shared PositionalEncoding cache (Issue 3) ---
+
+    def test_traced_cross_attention_handles_different_lengths_at_inference(self):
+        # Regression: embed_positions is one PositionalEncoding instance shared by both
+        # the query call and the key/value call in forward(). If torch.jit.trace (or
+        # torch.onnx.export) happens to see equal query/key time_dims at trace time, the
+        # cache reuse branch is the only one ever observed, baking a fixed shape into the
+        # traced graph. That graph then breaks when query/key have genuinely different
+        # lengths at inference, even though eager mode always handled this correctly.
+        d_model = 8
+        encoder = TransformerEncoder(
+            d_model=d_model,
+            num_heads=2,
+            num_layers=1,
+            is_cross_modal=True,
+            attention_config=AttentionConfig(type="linear"),
+        )
+        encoder.eval()
+
+        class Wrap(torch.nn.Module):
+            def __init__(self, m):
+                super().__init__()
+                self.m = m
+
+            def forward(self, x_q, x_k):
+                return self.m(x_q, x_k, x_k)
+
+        wrapped = Wrap(encoder)
+
+        # Trace-time inputs share the same time_dim (the trigger condition).
+        x_q = torch.rand(1, 50, d_model)
+        x_k = torch.rand(1, 50, d_model)
+        traced = torch.jit.trace(wrapped, (x_q, x_k), check_trace=False)
+
+        # Inference-time inputs have genuinely different query/key lengths.
+        x_q2 = torch.rand(1, 17, d_model)
+        x_k2 = torch.rand(1, 23, d_model)
+        output = traced(x_q2, x_k2)
+        self.assertEqual(output.shape, (1, 17, d_model))
