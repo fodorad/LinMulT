@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.1](https://github.com/fodorad/LinMulT/compare/v2.1.0...v2.1.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **pe:** rebuild positional encoding cache during tracing ([5922a5f](https://github.com/fodorad/LinMulT/commit/5922a5f534c61971cce0f034110754003a1ba0cc))
+* **pe:** rebuild positional encoding cache during tracing ([82667e5](https://github.com/fodorad/LinMulT/commit/82667e5c9f10dc9851836d70df5155c7124cf4af))
+
 ## [2.1.0](https://github.com/fodorad/LinMulT/compare/v2.0.1...v2.1.0) (2026-04-10)
 
 
