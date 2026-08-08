@@ -14,13 +14,13 @@ jobs:
         os: [ubuntu-latest, macos-latest]
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         lfs: true
         fetch-depth: 0  # required for hatch-vcs git describe
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -53,7 +53,7 @@ jobs:
         uv run coverage xml -o coverage.xml
 
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
