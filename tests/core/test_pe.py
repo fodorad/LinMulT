@@ -59,3 +59,31 @@ class TestPositionalEncoding(unittest.TestCase):
         out2 = pe(x2)
         self.assertEqual(out1.shape, x1.shape)
         self.assertEqual(out2.shape, x2.shape)
+
+    def test_cache_rebuilt_every_call_while_tracing(self):
+        # Under torch.jit.trace, the cache must be rebuilt on every call rather than
+        # reused, since a tracer only observes whichever branch fires on the shapes
+        # it is given at trace time. Reusing the cache would bake in a fixed shape,
+        # which fails when a later call sees a genuinely different time_dim.
+        class Wrap(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.pe = PositionalEncoding(dropout=0.0)
+
+            def forward(self, x_q, x_k):
+                return self.pe(x_q), self.pe(x_k)
+
+        m = Wrap()
+        m.eval()
+
+        # Trace-time inputs share the same time_dim, which used to poison the cache.
+        x_q = torch.rand(1, 50, 8)
+        x_k = torch.rand(1, 50, 8)
+        traced = torch.jit.trace(m, (x_q, x_k), check_trace=False)
+
+        # Inference-time inputs have genuinely different time_dims.
+        x_q2 = torch.rand(1, 17, 8)
+        x_k2 = torch.rand(1, 23, 8)
+        out_q, out_k = traced(x_q2, x_k2)
+        self.assertEqual(out_q.shape, x_q2.shape)
+        self.assertEqual(out_k.shape, x_k2.shape)
