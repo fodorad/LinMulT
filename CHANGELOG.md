@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.2](https://github.com/fodorad/LinMulT/compare/v2.1.1...v2.1.2) (2026-08-09)
+
+
+### Bug Fixes
+
+* lower minimum supported Python to 3.12 ([#17](https://github.com/fodorad/LinMulT/issues/17)) ([7bc8b53](https://github.com/fodorad/LinMulT/commit/7bc8b532cfbc6cc2a1ee01b5f7840304f4e8bd3c))
+
 ## [2.1.1](https://github.com/fodorad/LinMulT/compare/v2.1.0...v2.1.1) (2026-08-08)
 
 
