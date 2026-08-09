@@ -12,7 +12,7 @@
 [![codecov](https://codecov.io/gh/fodorad/linmult/branch/main/graph/badge.svg)](https://codecov.io/gh/fodorad/linmult)
 [![Docs](https://img.shields.io/badge/docs-online-blue?logo=githubpages)](https://adamfodor.com/LinMulT/)
 <br/>
-[![Python](https://img.shields.io/badge/python-3.13%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.9.1%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)

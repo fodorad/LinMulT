@@ -11,10 +11,12 @@ authors = [
   { name = "fodorad", email = "fodorad201@gmail.com" },
 ]
 readme = {"file" = "README.md", "content-type" = "text/markdown"}
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 license = "MIT"
 classifiers = [
+  "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
@@ -90,4 +92,4 @@ skip_covered = false
 directory = "coverage_html"
 
 [tool.ty.environment]
-python-version = "3.13"
+python-version = "3.12"
